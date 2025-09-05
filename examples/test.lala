@@ -1,0 +1,28 @@
+
+{2 *} =double
+
+3 double @ print
+
+
+{*} =times
+
+
+"Hello world" =msg
+msg print
+
+{print} 3 for
+
+[] =stuff
+{stuff .append} 3 for
+stuff print
+
+
+[1 2 3] =stuff
+{} stuff for
+
+
+{1 +} =add1
+
+{
+
+}

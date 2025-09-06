@@ -199,11 +199,11 @@ void compiler_compile(compiler_t *compiler, char *text) {
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_SETTER);
             code_push_i(code, i);
-        } else if (first_c == '=') {
-            // store global
+        } else if (first_c == '=' || first_c == '@' && token[1] != '\0') {
+            // store/call global
             const char *s = parse_name(token + 1);
             int i = vm_get_cached_str_i(vm, s);
-            code_push_instruction(code, INSTR_STORE_GLOBAL);
+            code_push_instruction(code, first_c == '='? INSTR_STORE_GLOBAL: INSTR_CALL_GLOBAL);
             code_push_i(code, i);
         } else if ((op = parse_operator(token)) >= 0) {
             // operator

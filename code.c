@@ -11,6 +11,7 @@ const char *instruction_names[N_INSTRS] = {
     "LOAD_STR",
     "LOAD_GLOBAL",
     "STORE_GLOBAL",
+    "CALL_GLOBAL",
     "GETTER",
     "SETTER",
     "NEG",

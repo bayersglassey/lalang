@@ -352,7 +352,7 @@ void list_print(object_t *self) {
 }
 
 bool list_type_getter(object_t *self, const char *name, vm_t *vm) {
-    if (!strcmp(name, "new")) {
+    if (!strcmp(name, "@")) {
         vm_push(vm, object_create_list(NULL));
     } else return false;
     return true;
@@ -450,7 +450,7 @@ void dict_print(object_t *self) {
 }
 
 bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
-    if (!strcmp(name, "new")) {
+    if (!strcmp(name, "@")) {
         vm_push(vm, object_create_dict(NULL));
     } else return false;
     return true;

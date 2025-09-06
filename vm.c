@@ -216,7 +216,8 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
         printf(" \"%s\"", vm->str_cache->items[j].name);
     } else if (
         instruction == INSTR_GETTER || instruction == INSTR_SETTER ||
-        instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_STORE_GLOBAL
+        instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_STORE_GLOBAL ||
+        instruction == INSTR_CALL_GLOBAL
     ) {
         int j = code->bytecodes[++i].i;
         printf(" %s", vm->str_cache->items[j].name);
@@ -250,7 +251,7 @@ void vm_eval(vm_t *vm, code_t *code) {
             object_t *obj = vm_pop(vm);
             if (instruction == INSTR_GETTER) object_getter(obj, name, vm);
             if (instruction == INSTR_SETTER) object_setter(obj, name, vm);
-        } else if (instruction == INSTR_LOAD_GLOBAL) {
+        } else if (instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_CALL_GLOBAL) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;
             object_t *obj = dict_get(vm->globals, name);
@@ -258,7 +259,11 @@ void vm_eval(vm_t *vm, code_t *code) {
                 fprintf(stderr, "Global not found: %s\n", name);
                 exit(1);
             }
-            vm_push(vm, obj);
+            if (instruction == INSTR_CALL_GLOBAL) {
+                object_getter(obj, "@", vm);
+            } else {
+                vm_push(vm, obj);
+            }
         } else if (instruction == INSTR_STORE_GLOBAL) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;

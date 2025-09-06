@@ -11,25 +11,27 @@
 * MAIN
 *****************/
 
-static bool getenv_bool(const char *name) {
+static bool getenv_bool(const char *name, bool default_value) {
     const char *env = getenv(name);
-    return env && !strcmp(env, "1");
+    if (env) return !strcmp(env, "1");
+    return default_value;
 }
 
 int main(int n_args, char **args) {
     vm_t *vm = vm_create();
     compiler_t *compiler = compiler_create(vm);
 
-    compiler->debug_print_tokens = getenv_bool("PRINT_TOKENS");
-    bool debug_print_code = getenv_bool("PRINT_CODE");
-    vm->debug_print_stack = getenv_bool("PRINT_STACK");
-    vm->debug_print_instructions = getenv_bool("PRINT_INSTRUCTIONS");
+    bool quiet = getenv_bool("QUIET", false);
+    compiler->debug_print_tokens = getenv_bool("PRINT_TOKENS", false);
+    bool debug_print_code = getenv_bool("PRINT_CODE", false);
+    vm->debug_print_stack = getenv_bool("PRINT_STACK", false);
+    vm->debug_print_instructions = getenv_bool("PRINT_INSTRUCTIONS", false);
 
     char *line = NULL;
     size_t line_size = 0;
     bool continuing_line = false;
     while (true) {
-        fputs(continuing_line? "... ": ">>> ", stdout);
+        if (!quiet) fputs(continuing_line? "... ": ">>> ", stdout);
         if (getline(&line, &line_size, stdin) < 0) {
             if (errno) {
                 fprintf(stderr, "Error getting line from stdin\n");
@@ -45,7 +47,7 @@ int main(int n_args, char **args) {
                 printf("=== END CODE\n");
             }
             vm_eval(vm, code);
-            vm_print_stack(vm);
+            if (!quiet) vm_print_stack(vm);
         }
         continuing_line = !code;
     }

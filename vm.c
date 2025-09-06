@@ -10,6 +10,36 @@
 * BUILTIN FUNCTIONS
 *************************/
 
+void builtin_if(vm_t *vm) {
+    object_t *if_obj = vm_pop(vm);
+    object_t *cond_obj = vm_pop(vm);
+    if (object_to_bool(cond_obj)) {
+        object_getter(if_obj, "@", vm);
+    }
+}
+
+void builtin_ifelse(vm_t *vm) {
+    object_t *else_obj = vm_pop(vm);
+    object_t *if_obj = vm_pop(vm);
+    object_t *cond_obj = vm_pop(vm);
+    if (object_to_bool(cond_obj)) {
+        object_getter(if_obj, "@", vm);
+    } else {
+        object_getter(else_obj, "@", vm);
+    }
+}
+
+void builtin_while(vm_t *vm) {
+    object_t *body_obj = vm_pop(vm);
+    object_t *cond_func_obj = vm_pop(vm);
+    while (true) {
+        object_getter(cond_func_obj, "@", vm);
+        object_t *cond_obj = vm_pop(vm);
+        if (!object_to_bool(cond_obj)) break;
+        object_getter(body_obj, "@", vm);
+    }
+}
+
 void builtin_globals(vm_t *vm) {
     vm_push(vm, object_create_dict(vm->globals));
 }
@@ -161,6 +191,7 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "false", &lala_false);
 
     // initialize type globals
+    dict_set(vm->globals, "type", object_create_type(&type_type));
     dict_set(vm->globals, "nulltype", object_create_type(&null_type));
     dict_set(vm->globals, "bool", object_create_type(&bool_type));
     dict_set(vm->globals, "int", object_create_type(&int_type));
@@ -170,6 +201,9 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "func", object_create_type(&func_type));
 
     // initialize function globals
+    vm_add_builtin(vm, "if", &builtin_if);
+    vm_add_builtin(vm, "ifelse", &builtin_ifelse);
+    vm_add_builtin(vm, "while", &builtin_while);
     vm_add_builtin(vm, "globals", &builtin_globals);
     vm_add_builtin(vm, "typeof", &builtin_typeof);
     vm_add_builtin(vm, "print", &builtin_print);

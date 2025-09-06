@@ -1,6 +1,7 @@
 
-* functions
-* conditionals
-* iterators
-* custom classes
-* local variables
+[X] functions
+[X] conditionals
+[ ] iterators
+[ ] custom classes
+[ ] local variables
+[ ] unit tests

@@ -28,9 +28,15 @@ cmp_result_t type_cmp(object_t *self, object_t *other) {
 
 bool type_getter(object_t *self, const char *name, vm_t *vm) {
     type_t *type = self->data.ptr;
-    if (type->type_getter) return type->type_getter(self, name, vm);
-    fprintf(stderr, "Type '%s' has no getter '%s'\n", type->name, name);
-    exit(1);
+    if (type->type_getter) {
+        return type->type_getter(self, name, vm);
+    } else if (!strcmp("name", name)) {
+        vm_push(vm, vm_get_or_create_str(vm, type->name));
+    } else {
+        fprintf(stderr, "Type '%s' has no getter '%s'\n", type->name, name);
+        exit(1);
+    }
+    return true;
 }
 
 bool type_setter(object_t *self, const char *name, vm_t *vm) {
@@ -165,10 +171,42 @@ bool bool_to_bool(object_t *self) {
     return self->data.i;
 }
 
+bool bool_getter(object_t *self, const char *name, vm_t *vm) {
+    int op = parse_operator(name);
+    if (op < FIRST_BOOL_OP || op > LAST_BOOL_OP) return false;
+
+    instruction_t instruction = FIRST_OP_INSTR + op;
+    bool is_unop = instruction == INSTR_NOT;
+
+    bool i, j;
+    if (is_unop) {
+        i = self->data.i;
+    } else {
+        object_t *other = vm_pop(vm);
+        i = object_to_bool(other);
+        j = self->data.i;
+    }
+
+    switch (instruction) {
+        case INSTR_NOT: i = ~i; break;
+        case INSTR_AND: i &= j; break;
+        case INSTR_OR: i |= j; break;
+        case INSTR_XOR: i ^= j; break;
+        default:
+            // should never happen...
+            fprintf(stderr, "Unknown instruction in bool_getter: %i\n", instruction);
+            exit(1);
+    }
+
+    vm_push(vm, object_create_bool(i));
+    return true;
+}
+
 type_t bool_type = {
     .name = "bool",
     .print = bool_print,
     .to_bool = bool_to_bool,
+    .getter = bool_getter,
 };
 
 object_t lala_true = {
@@ -210,18 +248,18 @@ cmp_result_t int_cmp(object_t *self, object_t *other) {
 
 bool int_getter(object_t *self, const char *name, vm_t *vm) {
     int op = parse_operator(name);
-    if (op < FIRST_INT_OP || op > LAST_INT_OP) return false;
+    if (op < FIRST_INT_OP || op > LAST_BOOL_OP) return false;
 
     instruction_t instruction = FIRST_OP_INSTR + op;
-    bool is_binop = instruction != INSTR_NEG;
+    bool is_unop = instruction == INSTR_NEG || instruction == INSTR_NOT;
 
     int i, j;
-    if (is_binop) {
+    if (is_unop) {
+        i = self->data.i;
+    } else {
         object_t *other = vm_pop(vm);
         i = object_to_int(other);
         j = self->data.i;
-    } else {
-        i = self->data.i;
     }
 
     switch (instruction) {
@@ -231,6 +269,10 @@ bool int_getter(object_t *self, const char *name, vm_t *vm) {
         case INSTR_MUL: i *= j; break;
         case INSTR_DIV: i /= j; break;
         case INSTR_MOD: i %= j; break;
+        case INSTR_NOT: i = ~i; break;
+        case INSTR_AND: i &= j; break;
+        case INSTR_OR: i |= j; break;
+        case INSTR_XOR: i ^= j; break;
         default:
             // should never happen...
             fprintf(stderr, "Unknown instruction in int_getter: %i\n", instruction);
@@ -278,11 +320,19 @@ cmp_result_t str_cmp(object_t *self, object_t *other) {
     else return CMP_EQ;
 }
 
+bool str_getter(object_t *self, const char *name, vm_t *vm) {
+    if (!strcmp(name, "write")) {
+        fputs(self->data.ptr, stdout);
+    } else return false;
+    return true;
+}
+
 type_t str_type = {
     .name = "str",
     .print = str_print,
     .to_str = str_to_str,
     .cmp = str_cmp,
+    .getter = str_getter,
 };
 
 
@@ -354,6 +404,10 @@ void list_print(object_t *self) {
 bool list_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "@")) {
         int n = object_to_int(vm_pop(vm));
+        if (n < 0) {
+            fprintf(stderr, "Tried to build a list of negative size %i\n", n);
+            exit(1);
+        }
         int size = vm_get_size(vm);
         if (n > size) {
             fprintf(stderr, "Tried to build a list of size %i from a stack of size %i\n", n, size);
@@ -461,6 +515,10 @@ void dict_print(object_t *self) {
 bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "@")) {
         int n = object_to_int(vm_pop(vm));
+        if (n < 0) {
+            fprintf(stderr, "Tried to build a dict of negative size %i\n", n);
+            exit(1);
+        }
         int size = vm_get_size(vm);
         if (n * 2 > size) {
             fprintf(stderr, "Tried to build a dict of size %i (requiring %i inputs) from a stack of size %i\n", n, n * 2, size);
@@ -479,7 +537,17 @@ bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
 
 bool dict_getter(object_t *self, const char *name, vm_t *vm) {
     dict_t *dict = self->data.ptr;
-    if (!strcmp(name, "has")) {
+    if (!strcmp(name, "len")) {
+        vm_push(vm, vm_get_or_create_int(vm, dict->len));
+    } else if (!strcmp(name, "get_i")) {
+        // hacky method, but useful for iteration
+        int i = object_to_int(vm_pop(vm));
+        if (i < 0 || i >= dict->len) {
+            fprintf(stderr, "Index %i out of bounds for dict of size %i\n", i, dict->len);
+            exit(1);
+        }
+        vm_push(vm, dict->items[i].value);
+    } else if (!strcmp(name, "has")) {
         const char *name = object_to_str(vm_pop(vm));
         object_t *obj = dict_get(dict, name);
         vm_push(vm, object_create_bool(obj));

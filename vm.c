@@ -10,6 +10,12 @@
 * BUILTIN FUNCTIONS
 *************************/
 
+void builtin_is(vm_t *vm) {
+    object_t *obj1 = vm_pop(vm);
+    object_t *obj2 = vm_pop(vm);
+    vm_push(vm, object_create_bool(obj1 == obj2));
+}
+
 void builtin_if(vm_t *vm) {
     object_t *if_obj = vm_pop(vm);
     object_t *cond_obj = vm_pop(vm);
@@ -99,6 +105,12 @@ void builtin_include(vm_t *vm) {
         exit(1);
     }
     vm_eval(vm, code);
+}
+
+void builtin_error(vm_t *vm) {
+    const char *msg = object_to_str(vm_pop(vm));
+    printf("ERROR: %s\n", msg);
+    exit(1);
 }
 
 
@@ -223,6 +235,7 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "func", object_create_type(&func_type));
 
     // initialize function globals
+    vm_add_builtin(vm, "is", &builtin_is);
     vm_add_builtin(vm, "if", &builtin_if);
     vm_add_builtin(vm, "ifelse", &builtin_ifelse);
     vm_add_builtin(vm, "while", &builtin_while);
@@ -237,6 +250,7 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "clear", &builtin_clear);
     vm_add_builtin(vm, "print_stack", &vm_print_stack);
     vm_add_builtin(vm, "include", &builtin_include);
+    vm_add_builtin(vm, "error", &builtin_error);
 
     // initialize int cache
     for (int i = VM_MIN_CACHED_INT; i <= VM_MAX_CACHED_INT; i++) {

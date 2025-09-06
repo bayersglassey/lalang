@@ -195,6 +195,10 @@ void compiler_compile(compiler_t *compiler, char *text) {
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_LOAD_STR);
             code_push_i(code, i);
+        } else if ((op = parse_operator(token)) >= 0) {
+            // operator
+            // NOTE: need to check for this before the check for STORE_GLOBAL
+            code_push_instruction(code, FIRST_OP_INSTR + op);
         } else if (first_c == '.') {
             // getter
             const char *s = parse_name(token + 1);
@@ -214,9 +218,11 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_instruction(code, first_c == '='? INSTR_STORE_GLOBAL: INSTR_CALL_GLOBAL);
             code_push_i(code, i);
         } else if (!strcmp(token, "{")) {
+            // start code block
             frame = compiler_push_frame(compiler);
             code = frame->code;
         } else if (!strcmp(token, "}")) {
+            // end code block
             if (compiler->frame <= compiler->frames) {
                 fprintf(stderr, "Mismatched '}'\n");
                 exit(1);
@@ -228,9 +234,6 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code = frame->code;
             code_push_instruction(code, INSTR_LOAD_FUNC);
             code_push_i(code, i);
-        } else if ((op = parse_operator(token)) >= 0) {
-            // operator
-            code_push_instruction(code, FIRST_OP_INSTR + op);
         } else {
             // load global
             const char *s = parse_name(token);

@@ -10,6 +10,11 @@
 * BUILTIN FUNCTIONS
 *************************/
 
+void builtin_typeof(vm_t *vm) {
+    object_t *self = vm_pop(vm);
+    vm_push(vm, object_create_type(self->type));
+}
+
 void builtin_print(vm_t *vm) {
     object_t *self = vm_pop(vm);
     object_print(self);
@@ -64,7 +69,7 @@ object_t *vm_get(vm_t *vm, int i) {
         fprintf(stderr, "Can't get at index %i from stack of size %i\n", i, size);
         exit(1);
     }
-    return vm->stack_top[-1];
+    return vm->stack_top[-i];
 }
 
 void vm_set(vm_t *vm, int i, object_t *obj) {
@@ -73,7 +78,7 @@ void vm_set(vm_t *vm, int i, object_t *obj) {
         fprintf(stderr, "Can't set at index %i in stack of size %i\n", i, size);
         exit(1);
     }
-    vm->stack_top[-1] = obj;
+    vm->stack_top[-i] = obj;
 }
 
 object_t *vm_top(vm_t *vm) {
@@ -157,6 +162,7 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "func", object_create_type(&func_type));
 
     // initialize function globals
+    vm_add_builtin(vm, "typeof", &builtin_typeof);
     vm_add_builtin(vm, "print", &builtin_print);
     vm_add_builtin(vm, "dup", &builtin_dup);
     vm_add_builtin(vm, "drop", &builtin_drop);

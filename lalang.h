@@ -118,12 +118,17 @@ code_t *code_push_i(code_t *code, int i);
 
 struct type {
     const char *name;
+    void *data;
 
     // coercions to C types
     to_bool_t *to_bool;
     to_int_t *to_int;
     to_str_t *to_str;
     cmp_t *cmp;
+
+    // type attributes/methods (used by type_type)
+    getter_t *type_getter;
+    getter_t *type_setter;
 
     // object attributes/methods
     getter_t *getter;

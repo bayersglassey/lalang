@@ -18,7 +18,7 @@ object_t *object_create_type(type_t *type) {
 
 void type_print(object_t *self) {
     type_t *type = self->data.ptr;
-    printf("<class '%s'>", type->name);
+    printf("<type '%s'>", type->name);
 }
 
 cmp_result_t type_cmp(object_t *self, object_t *other) {
@@ -26,10 +26,26 @@ cmp_result_t type_cmp(object_t *self, object_t *other) {
     return self->data.ptr == other->data.ptr;
 }
 
+bool type_getter(object_t *self, const char *name, vm_t *vm) {
+    type_t *type = self->data.ptr;
+    if (type->type_getter) return type->type_getter(self, name, vm);
+    fprintf(stderr, "Type '%s' has no getter '%s'\n", type->name, name);
+    exit(1);
+}
+
+bool type_setter(object_t *self, const char *name, vm_t *vm) {
+    type_t *type = self->data.ptr;
+    if (type->type_setter) return type->type_setter(self, name, vm);
+    fprintf(stderr, "Type '%s' has no setter '%s'\n", type->name, name);
+    exit(1);
+}
+
 type_t type_type = {
     .name = "type",
     .print = type_print,
     .cmp = type_cmp,
+    .getter = type_getter,
+    .setter = type_setter,
 };
 
 object_t lala_type = {
@@ -102,7 +118,7 @@ void object_setter(object_t *self, const char *name, vm_t *vm) {
 void object_print(object_t *self) {
     type_t *type = self->type;
     if (type->print) type->print(self);
-    else printf("<%s object at %p>", type->name, self);
+    else printf("<'%s' object at %p>", type->name, self);
 }
 
 
@@ -249,6 +265,10 @@ void str_print(object_t *self) {
     printf("\"%s\"", s);
 }
 
+const char *str_to_str(object_t *self) {
+    return self->data.ptr;
+}
+
 cmp_result_t str_cmp(object_t *self, object_t *other) {
     const char *s1 = object_to_str(other);
     const char *s2 = self->data.ptr;
@@ -261,6 +281,7 @@ cmp_result_t str_cmp(object_t *self, object_t *other) {
 type_t str_type = {
     .name = "str",
     .print = str_print,
+    .to_str = str_to_str,
     .cmp = str_cmp,
 };
 
@@ -330,11 +351,16 @@ void list_print(object_t *self) {
     putc(']', stdout);
 }
 
-bool list_getter(object_t *self, const char *name, vm_t *vm) {
-    list_t *list = self->data.ptr;
+bool list_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "new")) {
         vm_push(vm, object_create_list(NULL));
-    } else if (!strcmp(name, "len")) {
+    } else return false;
+    return true;
+}
+
+bool list_getter(object_t *self, const char *name, vm_t *vm) {
+    list_t *list = self->data.ptr;
+    if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, list->len));
     } else if (!strcmp(name, "get")) {
         object_t *i_obj = vm_pop(vm);
@@ -357,6 +383,7 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
 type_t list_type = {
     .name = "list",
     .print = list_print,
+    .type_getter = list_type_getter,
     .getter = list_getter,
 };
 
@@ -422,11 +449,16 @@ void dict_print(object_t *self) {
     putc('}', stdout);
 }
 
-bool dict_getter(object_t *self, const char *name, vm_t *vm) {
-    dict_t *dict = self->data.ptr;
+bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "new")) {
         vm_push(vm, object_create_dict(NULL));
-    } else if (!strcmp(name, "has")) {
+    } else return false;
+    return true;
+}
+
+bool dict_getter(object_t *self, const char *name, vm_t *vm) {
+    dict_t *dict = self->data.ptr;
+    if (!strcmp(name, "has")) {
         const char *name = object_to_str(vm_pop(vm));
         object_t *obj = dict_get(dict, name);
         vm_push(vm, object_create_bool(obj));
@@ -454,6 +486,7 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
 type_t dict_type = {
     .name = "dict",
     .print = dict_print,
+    .type_getter = dict_type_getter,
     .getter = dict_getter,
 };
 

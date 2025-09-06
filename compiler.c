@@ -27,6 +27,14 @@ static compiler_frame_t *compiler_push_frame(compiler_t *compiler) {
     return frame;
 }
 
+static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
+    if (compiler->frame < compiler->frames) {
+        fprintf(stderr, "Tried to pop from an empty frame stack\n");
+        exit(1);
+    }
+    return compiler->frame--;
+}
+
 static char *get_token(char *text, int *token_len_ptr) {
     // Returns a pointer to the start of the token in text, or NULL if no
     // token found.
@@ -204,6 +212,21 @@ void compiler_compile(compiler_t *compiler, char *text) {
             const char *s = parse_name(token + 1);
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, first_c == '='? INSTR_STORE_GLOBAL: INSTR_CALL_GLOBAL);
+            code_push_i(code, i);
+        } else if (!strcmp(token, "{")) {
+            frame = compiler_push_frame(compiler);
+            code = frame->code;
+        } else if (!strcmp(token, "}")) {
+            if (compiler->frame <= compiler->frames) {
+                fprintf(stderr, "Mismatched '}'\n");
+                exit(1);
+            }
+            vm_push_code(vm, code);
+            int i = vm->code_cache->len - 1;
+            compiler_pop_frame(compiler);
+            frame = compiler->frame;
+            code = frame->code;
+            code_push_instruction(code, INSTR_LOAD_FUNC);
             code_push_i(code, i);
         } else if ((op = parse_operator(token)) >= 0) {
             // operator

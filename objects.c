@@ -495,7 +495,7 @@ type_t dict_type = {
 * FUNC
 ****************/
 
-func_t *func_create_c_code(const char *name, c_code_t *c_code, list_t *args) {
+func_t *func_create_with_c_code(const char *name, c_code_t *c_code, list_t *args) {
     func_t *func = calloc(1, sizeof *func);
     if (!func) {
         fprintf(stderr, "Failed to allocate c_code func: %s\n", name? name: "(no name)");
@@ -508,7 +508,7 @@ func_t *func_create_c_code(const char *name, c_code_t *c_code, list_t *args) {
     return func;
 }
 
-func_t *func_create_code(const char *name, code_t *code, list_t *args) {
+func_t *func_create(const char *name, code_t *code, list_t *args) {
     func_t *func = calloc(1, sizeof *func);
     if (!func) {
         fprintf(stderr, "Failed to allocate code func: %s\n", name? name: "(no name)");
@@ -521,15 +521,15 @@ func_t *func_create_code(const char *name, code_t *code, list_t *args) {
     return func;
 }
 
-object_t *object_create_func_c_code(const char *name, c_code_t *c_code, list_t *args) {
+object_t *object_create_func_with_c_code(const char *name, c_code_t *c_code, list_t *args) {
     object_t *obj = object_create(&func_type);
-    obj->data.ptr = func_create_c_code(name, c_code, args);
+    obj->data.ptr = func_create_with_c_code(name, c_code, args);
     return obj;
 }
 
-object_t *object_create_func_code(const char *name, code_t *code, list_t *args) {
+object_t *object_create_func(const char *name, code_t *code, list_t *args) {
     object_t *obj = object_create(&func_type);
-    obj->data.ptr = func_create_code(name, code, args);
+    obj->data.ptr = func_create(name, code, args);
     return obj;
 }
 

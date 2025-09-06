@@ -141,7 +141,11 @@ object_t *vm_get_or_create_int(vm_t *vm, int i) {
 }
 
 void vm_add_builtin(vm_t *vm, const char *name, c_code_t *code) {
-    dict_set(vm->globals, name, object_create_func_c_code(name, code, NULL));
+    dict_set(vm->globals, name, object_create_func_with_c_code(name, code, NULL));
+}
+
+void vm_push_code(vm_t *vm, code_t *code) {
+    list_push(vm->code_cache, object_create_func(NULL, code, NULL));
 }
 
 void vm_init(vm_t *vm) {
@@ -185,6 +189,9 @@ void vm_init(vm_t *vm) {
     // initialize str cache (i.e. the "string pool")
     vm->str_cache = dict_create();
 
+    // initialize code cache
+    vm->code_cache = list_create();
+
 }
 
 vm_t *vm_create() {
@@ -214,6 +221,8 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
     } else if (instruction == INSTR_LOAD_STR) {
         int j = code->bytecodes[++i].i;
         printf(" \"%s\"", vm->str_cache->items[j].name);
+    } else if (instruction == INSTR_LOAD_FUNC) {
+        printf(" %i", code->bytecodes[++i].i);
     } else if (
         instruction == INSTR_GETTER || instruction == INSTR_SETTER ||
         instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_STORE_GLOBAL ||
@@ -241,10 +250,14 @@ void vm_eval(vm_t *vm, code_t *code) {
 
         instruction_t instruction = code->bytecodes[i].instruction;
         if (instruction == INSTR_LOAD_INT) {
-            vm_push(vm, vm_get_or_create_int(vm, code->bytecodes[++i].i));
+            int j = code->bytecodes[++i].i;
+            vm_push(vm, vm_get_or_create_int(vm, j));
         } else if (instruction == INSTR_LOAD_STR) {
             int j = code->bytecodes[++i].i;
             vm_push(vm, vm->str_cache->items[j].value);
+        } else if (instruction == INSTR_LOAD_FUNC) {
+            int j = code->bytecodes[++i].i;
+            vm_push(vm, vm->code_cache->elems[j]);
         } else if (instruction == INSTR_GETTER || instruction == INSTR_SETTER) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;

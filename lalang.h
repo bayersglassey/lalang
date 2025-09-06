@@ -60,6 +60,7 @@ enum cmp_result {
 enum instruction {
     INSTR_LOAD_INT,
     INSTR_LOAD_STR,
+    INSTR_LOAD_FUNC,
     INSTR_LOAD_GLOBAL,
     INSTR_STORE_GLOBAL,
     INSTR_CALL_GLOBAL,
@@ -261,8 +262,8 @@ struct func {
     list_t *args;
 };
 
-object_t *object_create_func_c_code(const char *name, c_code_t *c_code, list_t *args);
-object_t *object_create_func_code(const char *name, code_t *code, list_t *args);
+object_t *object_create_func_with_c_code(const char *name, c_code_t *c_code, list_t *args);
+object_t *object_create_func(const char *name, code_t *code, list_t *args);
 
 extern type_t func_type;
 
@@ -280,8 +281,9 @@ extern type_t func_type;
 struct vm {
     object_t *stack[VM_STACK_SIZE];
     object_t **stack_top;
-    dict_t *str_cache;
     object_t *int_cache[VM_INT_CACHE_SIZE];
+    dict_t *str_cache;
+    list_t *code_cache;
     dict_t *globals;
 
     bool debug_print_stack;
@@ -298,6 +300,7 @@ int vm_get_cached_str_i(vm_t *vm, const char *s);
 object_t *vm_get_cached_str(vm_t *vm, const char *s);
 object_t *vm_get_or_create_str(vm_t *vm, const char *s);
 object_t *vm_get_or_create_int(vm_t *vm, int i);
+void vm_push_code(vm_t *vm, code_t *code);
 
 vm_t *vm_create();
 void vm_print_stack(vm_t *vm);

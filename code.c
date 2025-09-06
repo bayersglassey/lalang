@@ -9,6 +9,7 @@
 const char *instruction_names[N_INSTRS] = {
     "LOAD_INT",
     "LOAD_STR",
+    "LOAD_FUNC",
     "LOAD_GLOBAL",
     "STORE_GLOBAL",
     "CALL_GLOBAL",

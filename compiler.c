@@ -7,72 +7,6 @@
 
 
 /****************
-* CODE
-****************/
-
-const char *instruction_name[N_INSTRUCTIONS] = {
-    "LOAD_INT",
-    "LOAD_STR",
-    "LOAD_GLOBAL",
-    "GETTER",
-    "SETTER",
-    "NEG",
-    "ADD",
-    "SUB",
-    "MUL",
-    "DIV",
-    "MOD",
-    "EQ",
-    "NE",
-    "LT",
-    "LE",
-    "GT",
-    "GE",
-    "CALL"
-};
-
-#define CODE_SIZE 1024
-
-static void code_grow(code_t *code, int len) {
-    // NOTE: the size of code->bytecodes is currently static, i.e. always CODE_SIZE
-    // TODO: allow code to be dynamically resized :P
-    if (len >= CODE_SIZE) {
-        fprintf(stderr, "Can't grow code beyond max size: %i\n", CODE_SIZE);
-        exit(1);
-    }
-    if (code->len >= len) return;
-    if (!code->bytecodes) {
-        bytecode_t *bytecodes = malloc(len * sizeof *bytecodes);
-        if (!bytecodes) {
-            fprintf(stderr, "Failed to allocate bytecodes\n");
-            exit(1);
-        }
-        code->bytecodes = bytecodes;
-    }
-    code->len = len;
-}
-
-code_t *code_create() {
-    code_t *code = calloc(1, sizeof *code);
-    if (!code) {
-        fprintf(stderr, "Failed to allocate code\n");
-        exit(1);
-    }
-    return code;
-}
-
-code_t *code_push_instruction(code_t *code, instruction_t instruction) {
-    code_grow(code, code->len + 1);
-    code->bytecodes[code->len - 1].instruction = instruction;
-}
-
-code_t *code_push_i(code_t *code, int i) {
-    code_grow(code, code->len + 1);
-    code->bytecodes[code->len - 1].i = i;
-}
-
-
-/****************
 * COMPILER
 ****************/
 
@@ -197,6 +131,13 @@ static const char *parse_name(const char *token) {
     return parsed;
 }
 
+int parse_operator(const char *token) {
+    for (int op = 0; op < N_OPERATORS; op++) {
+        if (!strcmp(token, operator_names[op])) return op;
+    }
+    return -1;
+}
+
 void compiler_compile(compiler_t *compiler, char *text) {
     // Get current frame, or add one
     compiler_frame_t *frame = compiler->frame < compiler->frames?
@@ -222,6 +163,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
         }
 
         char first_c = token[0];
+        int op;
         if (first_c >= '0' && first_c <= '9') {
             // int literal
             int i = first_c - '0';
@@ -257,32 +199,8 @@ void compiler_compile(compiler_t *compiler, char *text) {
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_SETTER);
             code_push_i(code, i);
-        } else if (!strcmp(token, "~")) {
-            code_push_instruction(code, INSTR_NEG);
-        } else if (!strcmp(token, "+")) {
-            code_push_instruction(code, INSTR_ADD);
-        } else if (!strcmp(token, "-")) {
-            code_push_instruction(code, INSTR_SUB);
-        } else if (!strcmp(token, "*")) {
-            code_push_instruction(code, INSTR_MUL);
-        } else if (!strcmp(token, "/")) {
-            code_push_instruction(code, INSTR_DIV);
-        } else if (!strcmp(token, "%")) {
-            code_push_instruction(code, INSTR_MOD);
-        } else if (!strcmp(token, "==")) {
-            code_push_instruction(code, INSTR_EQ);
-        } else if (!strcmp(token, "!=")) {
-            code_push_instruction(code, INSTR_NE);
-        } else if (!strcmp(token, "<")) {
-            code_push_instruction(code, INSTR_LT);
-        } else if (!strcmp(token, "<=")) {
-            code_push_instruction(code, INSTR_LE);
-        } else if (!strcmp(token, ">")) {
-            code_push_instruction(code, INSTR_GT);
-        } else if (!strcmp(token, ">=")) {
-            code_push_instruction(code, INSTR_GE);
-        } else if (!strcmp(token, "@")) {
-            code_push_instruction(code, INSTR_CALL);
+        } else if ((op = parse_operator(token)) >= 0) {
+            code_push_instruction(code, FIRST_OPERATOR_INSTRUCTION + op);
         } else {
             // name
             const char *s = parse_name(token);

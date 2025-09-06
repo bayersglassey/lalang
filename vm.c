@@ -13,6 +13,7 @@
 void builtin_print(vm_t *vm) {
     object_t *self = vm_pop(vm);
     object_print(self);
+    putc('\n', stdout);
 }
 
 void builtin_dup(vm_t *vm) {
@@ -41,6 +42,11 @@ void builtin_set(vm_t *vm) {
     int i = object_to_int(i_obj);
     object_t *obj = vm_pop(vm);
     vm_set(vm, i, obj);
+}
+
+void builtin_clear(vm_t *vm) {
+    // clear the stack
+    vm->stack_top = vm->stack - 1;
 }
 
 void builtin_pstack(vm_t *vm) {
@@ -92,11 +98,11 @@ object_t *vm_pop(vm_t *vm) {
 }
 
 void vm_push(vm_t *vm, object_t *obj) {
-    if (vm->stack_top >= vm->stack + VM_STACK_SIZE) {
+    if (vm->stack_top >= vm->stack + VM_STACK_SIZE - 1) {
         fprintf(stderr, "Out of stack space!\n");
         exit(1);
     }
-    *(vm->stack_top--) = obj;
+    *(++vm->stack_top) = obj;
 }
 
 int vm_get_cached_str_i(vm_t *vm, const char *s) {
@@ -166,6 +172,7 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "swap", &builtin_swap);
     vm_add_builtin(vm, "get", &builtin_get);
     vm_add_builtin(vm, "set", &builtin_set);
+    vm_add_builtin(vm, "clear", &builtin_clear);
     vm_add_builtin(vm, "pstack", &builtin_pstack);
 
     // initialize int cache
@@ -188,24 +195,69 @@ vm_t *vm_create() {
     return vm;
 }
 
-void vm_print_code(vm_t *vm, code_t *code) {
-    for (int i = 0; i < code->len; i++) {
-        instruction_t instruction = code->bytecodes[i].instruction;
-        fputs(instruction_name[instruction], stdout);
-        if (instruction == INSTR_LOAD_INT) {
-            printf(" %i", code->bytecodes[++i].i);
-        } else if (instruction == INSTR_LOAD_STR) {
-            int j = code->bytecodes[++i].i;
-            printf(" \"%s\"", vm->str_cache->items[j].name);
-        } else if (instruction == INSTR_GETTER || instruction == INSTR_SETTER || instruction == INSTR_LOAD_GLOBAL) {
-            int j = code->bytecodes[++i].i;
-            printf(" %s", vm->str_cache->items[j].name);
-        }
-        putc('\n', stdout);
+void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
+    int i = *i_ptr;
+
+    instruction_t instruction = code->bytecodes[i].instruction;
+    fputs(instruction_names[instruction], stdout);
+    if (instruction == INSTR_LOAD_INT) {
+        printf(" %i", code->bytecodes[++i].i);
+    } else if (instruction == INSTR_LOAD_STR) {
+        int j = code->bytecodes[++i].i;
+        printf(" \"%s\"", vm->str_cache->items[j].name);
+    } else if (instruction == INSTR_GETTER || instruction == INSTR_SETTER || instruction == INSTR_LOAD_GLOBAL) {
+        int j = code->bytecodes[++i].i;
+        printf(" %s", vm->str_cache->items[j].name);
     }
+    putc('\n', stdout);
+
+    *i_ptr = i;
+}
+
+void vm_print_code(vm_t *vm, code_t *code) {
+    for (int i = 0; i < code->len; i++) vm_print_instruction(vm, code, &i);
 }
 
 void vm_eval(vm_t *vm, code_t *code) {
-    fprintf(stderr, "TODO\n");
-    exit(1);
+    for (int i = 0; i < code->len; i++) {
+
+        if (vm->debug_print_instructions) {
+            int j = i;
+            vm_print_instruction(vm, code, &j);
+        }
+
+        instruction_t instruction = code->bytecodes[i].instruction;
+        if (instruction == INSTR_LOAD_INT) {
+            vm_push(vm, vm_get_or_create_int(vm, code->bytecodes[++i].i));
+        } else if (instruction == INSTR_LOAD_STR) {
+            int j = code->bytecodes[++i].i;
+            vm_push(vm, vm->str_cache->items[j].value);
+        } else if (instruction == INSTR_GETTER || instruction == INSTR_SETTER) {
+            int j = code->bytecodes[++i].i;
+            const char *name = vm->str_cache->items[j].name;
+            object_t *obj = vm_pop(vm);
+            if (instruction == INSTR_GETTER) object_getter(obj, name, vm);
+            if (instruction == INSTR_SETTER) object_setter(obj, name, vm);
+        } else if (instruction == INSTR_LOAD_GLOBAL) {
+            int j = code->bytecodes[++i].i;
+            const char *name = vm->str_cache->items[j].name;
+            object_t *obj = dict_get(vm->globals, name);
+            if (!obj) {
+                fprintf(stderr, "Global not found: %s\n", name);
+                exit(1);
+            }
+            vm_push(vm, obj);
+        } else {
+            // operator
+            int op = instruction - FIRST_OPERATOR_INSTRUCTION;
+            const char *name = operator_names[op];
+            object_t *obj = vm_pop(vm);
+            object_getter(obj, name, vm);
+        }
+
+        if (vm->debug_print_stack) {
+            builtin_pstack(vm);
+        }
+
+    }
 }

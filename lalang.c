@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 
 #include "lalang.h"
 
@@ -21,14 +22,18 @@ int main(int n_args, char **args) {
 
     compiler->debug_print_tokens = getenv_bool("PRINT_TOKENS");
     bool debug_print_code = getenv_bool("PRINT_CODE");
+    vm->debug_print_stack = getenv_bool("PRINT_STACK");
+    vm->debug_print_instructions = getenv_bool("PRINT_INSTRUCTIONS");
 
     char *line = NULL;
     size_t line_size = 0;
     while (true) {
         fputs("> ", stdout);
         if (getline(&line, &line_size, stdin) < 0) {
-            fprintf(stderr, "Error getting line from stdin\n");
-            exit(1);
+            if (errno) {
+                fprintf(stderr, "Error getting line from stdin\n");
+                exit(1);
+            } else break; // EOF
         }
         compiler_compile(compiler, line);
         code_t *code = compiler_pop_runnable_code(compiler);

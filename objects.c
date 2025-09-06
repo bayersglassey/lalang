@@ -81,21 +81,19 @@ cmp_result_t object_cmp(object_t *self, object_t *other) {
     else return self == other? CMP_EQ: CMP_NE;
 }
 
-bool object_getter(object_t *self, const char *name, vm_t *vm) {
+void object_getter(object_t *self, const char *name, vm_t *vm) {
     type_t *type = self->type;
     bool ok = type->getter? type->getter(self, name, vm): false;
-    if (ok) return true;
-    else {
+    if (!ok) {
         fprintf(stderr, "Object of type '%s' has no getter '%s'\n", type->name, name);
         exit(1);
     }
 }
 
-bool object_setter(object_t *self, const char *name, vm_t *vm) {
+void object_setter(object_t *self, const char *name, vm_t *vm) {
     type_t *type = self->type;
     bool ok = type->setter? type->setter(self, name, vm): false;
-    if (ok) return true;
-    else {
+    if (!ok) {
         fprintf(stderr, "Object of type '%s' has no setter '%s'\n", type->name, name);
         exit(1);
     }
@@ -111,6 +109,10 @@ void object_print(object_t *self) {
 /****************
 * NULL
 ****************/
+
+object_t *object_create_null() {
+    return &lala_null;
+}
 
 void null_print(object_t *self) {
     printf("null");
@@ -134,6 +136,10 @@ object_t lala_null = {
 /****************
 * BOOL
 ****************/
+
+object_t *object_create_bool(bool b) {
+    return b? &lala_true: &lala_false;
+}
 
 void bool_print(object_t *self) {
     printf(self->data.i? "true": "false");
@@ -171,20 +177,19 @@ object_t *object_create_int(int i) {
 }
 
 void int_print(object_t *self) {
-    int i = *(int*)self->data.ptr;
-    printf("%i", i);
+    printf("%i", self->data.i);
+}
+
+int int_to_int(object_t *self) {
+    return self->data.i;
 }
 
 bool int_getter(object_t *self, const char *name, vm_t *vm) {
-    bool is_binop = true;
-    char op;
-    if (!strcmp(name, "+")) op = '+';
-    else if (!strcmp(name, "-")) op = '-';
-    else if (!strcmp(name, "*")) op = '*';
-    else if (!strcmp(name, "/")) op = '/';
-    else if (!strcmp(name, "%")) op = '%';
-    else if (!strcmp(name, "~")) { is_binop = false; op = '~'; }
-    else return false;
+    int op = parse_operator(name);
+    if (op < FIRST_INT_OPERATOR || op > LAST_INT_OPERATOR) return false;
+
+    instruction_t instruction = FIRST_OPERATOR_INSTRUCTION + op;
+    bool is_binop = instruction != INSTR_NEG;
 
     int i, j;
     if (is_binop) {
@@ -195,13 +200,13 @@ bool int_getter(object_t *self, const char *name, vm_t *vm) {
         i = self->data.i;
     }
 
-    switch (op) {
-        case '+': i += j; break;
-        case '-': i -= j; break;
-        case '*': i *= j; break;
-        case '/': i /= j; break;
-        case '%': i %= j; break;
-        case '~': i = -i; break;
+    switch (instruction) {
+        case INSTR_NEG: i = -i; break;
+        case INSTR_ADD: i += j; break;
+        case INSTR_SUB: i -= j; break;
+        case INSTR_MUL: i *= j; break;
+        case INSTR_DIV: i /= j; break;
+        case INSTR_MOD: i %= j; break;
         default: /* should never happen... */ break;
     }
 
@@ -212,6 +217,7 @@ bool int_getter(object_t *self, const char *name, vm_t *vm) {
 type_t int_type = {
     .name = "int",
     .print = int_print,
+    .to_int = int_to_int,
     .getter = int_getter,
 };
 
@@ -316,6 +322,8 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
     list_t *list = self->data.ptr;
     if (!strcmp(name, "new")) {
         vm_push(vm, object_create_list(NULL));
+    } else if (!strcmp(name, "len")) {
+        vm_push(vm, vm_get_or_create_int(vm, list->len));
     } else if (!strcmp(name, "get")) {
         object_t *i_obj = vm_pop(vm);
         int i = object_to_int(i_obj);
@@ -406,9 +414,23 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
     dict_t *dict = self->data.ptr;
     if (!strcmp(name, "new")) {
         vm_push(vm, object_create_dict(NULL));
+    } else if (!strcmp(name, "has")) {
+        const char *name = object_to_str(vm_pop(vm));
+        object_t *obj = dict_get(dict, name);
+        vm_push(vm, object_create_bool(obj));
     } else if (!strcmp(name, "get")) {
         const char *name = object_to_str(vm_pop(vm));
-        vm_push(vm, dict_get(dict, name));
+        object_t *obj = dict_get(dict, name);
+        if (!obj) {
+            fprintf(stderr, "Tried to get missing dict key '%s'\n", name);
+            exit(1);
+        }
+        vm_push(vm, obj);
+    } else if (!strcmp(name, "get_default")) {
+        const char *name = object_to_str(vm_pop(vm));
+        object_t *obj_default = vm_pop(vm);
+        object_t *obj = dict_get(dict, name);
+        vm_push(vm, obj? obj: obj_default);
     } else if (!strcmp(name, "set")) {
         const char *name = object_to_str(vm_pop(vm));
         object_t *value = vm_pop(vm);

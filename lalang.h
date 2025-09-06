@@ -4,49 +4,12 @@
 #include <stdbool.h>
 
 
-/**********************
-* ENUMS
-**********************/
+/************************************
+* STRUCT / UNION / ENUM TYPEDEFS
+************************************/
 
-typedef enum instruction {
-    INSTR_LOAD_INT,
-    INSTR_LOAD_STR,
-    INSTR_LOAD_GLOBAL,
-    INSTR_GETTER,
-    INSTR_SETTER,
-
-    // OPERATORS
-    INSTR_NEG,
-    INSTR_ADD,
-    INSTR_SUB,
-    INSTR_MUL,
-    INSTR_DIV,
-    INSTR_MOD,
-    INSTR_EQ,
-    INSTR_NE,
-    INSTR_LT,
-    INSTR_LE,
-    INSTR_GT,
-    INSTR_GE,
-    INSTR_CALL,
-
-    N_INSTRUCTIONS
-} instruction_t;
-
-extern const char *instruction_name[N_INSTRUCTIONS];
-
-typedef enum cmp_result {
-    CMP_LT,
-    CMP_GT,
-    CMP_EQ,
-    CMP_NE
-} cmp_result_t;
-
-
-/****************************
-* STRUCT/UNION TYPEDEFS
-****************************/
-
+typedef enum instruction instruction_t;
+typedef enum cmp_result cmp_result_t;
 typedef struct type type_t;
 typedef struct object object_t;
 typedef struct list list_t;
@@ -76,6 +39,77 @@ typedef cmp_result_t cmp_t(object_t *self, object_t *other);
 // object attributes/methods
 typedef bool getter_t(object_t *self, const char *name, vm_t *vm);
 typedef void print_t(object_t *self);
+
+
+/****************
+* MISC
+****************/
+
+enum cmp_result {
+    CMP_LT,
+    CMP_GT,
+    CMP_EQ,
+    CMP_NE
+};
+
+
+/****************
+* CODE
+****************/
+
+enum instruction {
+    INSTR_LOAD_INT,
+    INSTR_LOAD_STR,
+    INSTR_LOAD_GLOBAL,
+    INSTR_GETTER,
+    INSTR_SETTER,
+
+    // OPERATORS
+    // NOTE: the order of these is important!
+    // They come at the end of the enum, so that we can define N_OPERATORS in
+    // terms of FIRST_OPERATOR_INSTRUCTION and N_INSTRUCTIONS.
+    // And the order of the operators must of course match that of
+    // operator_names.
+    INSTR_NEG,
+    INSTR_ADD,
+    INSTR_SUB,
+    INSTR_MUL,
+    INSTR_DIV,
+    INSTR_MOD,
+    INSTR_EQ,
+    INSTR_NE,
+    INSTR_LT,
+    INSTR_LE,
+    INSTR_GT,
+    INSTR_GE,
+    INSTR_CALL,
+
+    N_INSTRUCTIONS
+};
+
+#define FIRST_OPERATOR_INSTRUCTION INSTR_NEG
+#define FIRST_INT_OPERATOR (INSTR_NEG - FIRST_OPERATOR_INSTRUCTION)
+#define LAST_INT_OPERATOR (INSTR_MOD - FIRST_OPERATOR_INSTRUCTION)
+#define FIRST_CMP_OPERATOR (INSTR_EQ - FIRST_OPERATOR_INSTRUCTION)
+#define LAST_CMP_OPERATOR (INSTR_GE - FIRST_OPERATOR_INSTRUCTION)
+#define N_OPERATORS (N_INSTRUCTIONS - FIRST_OPERATOR_INSTRUCTION)
+
+extern const char *instruction_names[N_INSTRUCTIONS];
+extern const char *operator_names[N_OPERATORS];
+
+union bytecode {
+    instruction_t instruction;
+    int i;
+};
+
+struct code {
+    int len;
+    bytecode_t *bytecodes;
+};
+
+code_t *code_create();
+code_t *code_push_instruction(code_t *code, instruction_t instruction);
+code_t *code_push_i(code_t *code, int i);
 
 
 /****************
@@ -120,14 +154,16 @@ bool object_to_bool(object_t *self);
 int object_to_int(object_t *self);
 const char *object_to_str(object_t *self);
 cmp_result_t object_cmp(object_t *self, object_t *other);
-bool object_getter(object_t *self, const char *name, vm_t *vm);
-bool object_setter(object_t *self, const char *name, vm_t *vm);
+void object_getter(object_t *self, const char *name, vm_t *vm);
+void object_setter(object_t *self, const char *name, vm_t *vm);
 void object_print(object_t *self);
 
 
 /****************
 * NULL
 ****************/
+
+object_t *object_create_null();
 
 extern type_t null_type;
 extern object_t lala_null;
@@ -136,6 +172,8 @@ extern object_t lala_null;
 /****************
 * BOOL
 ****************/
+
+object_t *object_create_bool(bool b);
 
 extern type_t bool_type;
 extern object_t lala_true;
@@ -203,25 +241,6 @@ extern type_t dict_type;
 
 
 /****************
-* CODE
-****************/
-
-union bytecode {
-    instruction_t instruction;
-    int i;
-};
-
-struct code {
-    int len;
-    bytecode_t *bytecodes;
-};
-
-code_t *code_create();
-code_t *code_push_instruction(code_t *code, instruction_t instruction);
-code_t *code_push_i(code_t *code, int i);
-
-
-/****************
 * FUNC
 ****************/
 
@@ -257,6 +276,9 @@ struct vm {
     dict_t *str_cache;
     object_t *int_cache[VM_INT_CACHE_SIZE];
     dict_t *globals;
+
+    bool debug_print_stack;
+    bool debug_print_instructions;
 };
 
 int vm_get_size(vm_t *vm);
@@ -294,6 +316,7 @@ struct compiler {
 };
 
 compiler_t *compiler_create(vm_t *vm);
+int parse_operator(const char *token);
 void compiler_compile(compiler_t *compiler, char *text);
 code_t *compiler_pop_runnable_code(compiler_t *compiler);
 

@@ -1,4 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 
-gcc -o lalang lalang.c
+gcc -g -o lalang lalang.c

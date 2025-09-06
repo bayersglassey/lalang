@@ -12,6 +12,10 @@ typedef enum instruction {
     INSTR_LOAD_INT,
     INSTR_LOAD_STR,
     INSTR_LOAD_GLOBAL,
+    INSTR_GETTER,
+    INSTR_SETTER,
+
+    // OPERATORS
     INSTR_NEG,
     INSTR_ADD,
     INSTR_SUB,
@@ -25,10 +29,11 @@ typedef enum instruction {
     INSTR_GT,
     INSTR_GE,
     INSTR_CALL,
-    INSTR_GETTER,
-    INSTR_SETTER,
-    INSTR_RETURN,
+
+    N_INSTRUCTIONS
 } instruction_t;
+
+extern const char *instruction_name[N_INSTRUCTIONS];
 
 typedef enum cmp_result {
     CMP_LT,
@@ -51,6 +56,8 @@ typedef union bytecode bytecode_t;
 typedef struct code code_t;
 typedef struct func func_t;
 typedef struct vm vm_t;
+typedef struct compiler_frame compiler_frame_t;
+typedef struct compiler compiler_t;
 
 
 /**********************
@@ -67,7 +74,7 @@ typedef const char *to_str_t(object_t *self);
 typedef cmp_result_t cmp_t(object_t *self, object_t *other);
 
 // object attributes/methods
-typedef bool getter_t(object_t *self, const char *attr, vm_t *vm);
+typedef bool getter_t(object_t *self, const char *name, vm_t *vm);
 typedef void print_t(object_t *self);
 
 
@@ -113,8 +120,8 @@ bool object_to_bool(object_t *self);
 int object_to_int(object_t *self);
 const char *object_to_str(object_t *self);
 cmp_result_t object_cmp(object_t *self, object_t *other);
-bool object_getter(object_t *self, const char *attr, vm_t *vm);
-bool object_setter(object_t *self, const char *attr, vm_t *vm);
+bool object_getter(object_t *self, const char *name, vm_t *vm);
+bool object_setter(object_t *self, const char *name, vm_t *vm);
 void object_print(object_t *self);
 
 
@@ -191,7 +198,7 @@ extern type_t dict_type;
 
 
 /****************
-* FUNC
+* CODE
 ****************/
 
 union bytecode {
@@ -203,6 +210,15 @@ struct code {
     int len;
     bytecode_t *bytecodes;
 };
+
+code_t *code_create();
+code_t *code_push_instruction(code_t *code, instruction_t instruction);
+code_t *code_push_i(code_t *code, int i);
+
+
+/****************
+* FUNC
+****************/
 
 struct func {
     const char *name;
@@ -241,12 +257,34 @@ void vm_set(vm_t *vm, int i, object_t *obj);
 object_t *vm_top(vm_t *vm);
 object_t *vm_pop(vm_t *vm);
 void vm_push(vm_t *vm, object_t *obj);
+int vm_get_cached_str_i(vm_t *vm, const char *s);
 object_t *vm_get_cached_str(vm_t *vm, const char *s);
 object_t *vm_get_or_create_str(vm_t *vm, const char *s);
 object_t *vm_get_or_create_int(vm_t *vm, int i);
 
-vm_t *create_vm();
-code_t *vm_compile(vm_t *vm, const char *line);
+vm_t *vm_create();
 void vm_eval(vm_t *vm, code_t *code);
+
+
+/****************
+* COMPILER
+****************/
+
+#define COMPILER_STACK_SIZE 1024
+
+struct compiler_frame {
+    code_t *code;
+};
+
+struct compiler {
+    bool debug;
+    vm_t *vm;
+    compiler_frame_t frames[COMPILER_STACK_SIZE];
+    compiler_frame_t *frame;
+};
+
+compiler_t *compiler_create(vm_t *vm);
+void compiler_compile(compiler_t *compiler, char *text);
+code_t *compiler_pop_runnable_code(compiler_t *compiler);
 
 #endif

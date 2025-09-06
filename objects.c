@@ -184,11 +184,19 @@ int int_to_int(object_t *self) {
     return self->data.i;
 }
 
+cmp_result_t int_cmp(object_t *self, object_t *other) {
+    int i = object_to_int(other);
+    int j = self->data.i;
+    if (i < j) return CMP_LT;
+    else if (i > j) return CMP_GT;
+    else return CMP_EQ;
+}
+
 bool int_getter(object_t *self, const char *name, vm_t *vm) {
     int op = parse_operator(name);
-    if (op < FIRST_INT_OPERATOR || op > LAST_INT_OPERATOR) return false;
+    if (op < FIRST_INT_OP || op > LAST_INT_OP) return false;
 
-    instruction_t instruction = FIRST_OPERATOR_INSTRUCTION + op;
+    instruction_t instruction = FIRST_OP_INSTR + op;
     bool is_binop = instruction != INSTR_NEG;
 
     int i, j;
@@ -207,7 +215,10 @@ bool int_getter(object_t *self, const char *name, vm_t *vm) {
         case INSTR_MUL: i *= j; break;
         case INSTR_DIV: i /= j; break;
         case INSTR_MOD: i %= j; break;
-        default: /* should never happen... */ break;
+        default:
+            // should never happen...
+            fprintf(stderr, "Unknown instruction in int_getter: %i\n", instruction);
+            exit(1);
     }
 
     vm_push(vm, vm_get_or_create_int(vm, i));
@@ -218,6 +229,7 @@ type_t int_type = {
     .name = "int",
     .print = int_print,
     .to_int = int_to_int,
+    .cmp = int_cmp,
     .getter = int_getter,
 };
 
@@ -238,8 +250,8 @@ void str_print(object_t *self) {
 }
 
 cmp_result_t str_cmp(object_t *self, object_t *other) {
-    const char *s1 = self->data.ptr;
-    const char *s2 = object_to_str(other);
+    const char *s1 = object_to_str(other);
+    const char *s2 = self->data.ptr;
     int c = strcmp(s1, s2);
     if (c < 0) return CMP_LT;
     else if (c > 0) return CMP_GT;

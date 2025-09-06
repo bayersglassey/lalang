@@ -6,7 +6,7 @@
 #include "lalang.h"
 
 
-const char *instruction_names[N_INSTRUCTIONS] = {
+const char *instruction_names[N_INSTRS] = {
     "LOAD_INT",
     "LOAD_STR",
     "LOAD_GLOBAL",
@@ -27,7 +27,7 @@ const char *instruction_names[N_INSTRUCTIONS] = {
     "CALL"
 };
 
-const char *operator_names[N_OPERATORS] = {
+const char *operator_names[N_OPS] = {
     "~",
     "+",
     "-",

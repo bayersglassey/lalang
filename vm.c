@@ -49,15 +49,6 @@ void builtin_clear(vm_t *vm) {
     vm->stack_top = vm->stack - 1;
 }
 
-void builtin_pstack(vm_t *vm) {
-    printf("=== STACK:\n");
-    for (object_t **obj_ptr = vm->stack; obj_ptr <= vm->stack_top; obj_ptr++) {
-        object_print(*obj_ptr);
-        putc('\n', stdout);
-    }
-    printf("=== END STACK\n");
-}
-
 
 /****************
 * VM
@@ -173,7 +164,7 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "get", &builtin_get);
     vm_add_builtin(vm, "set", &builtin_set);
     vm_add_builtin(vm, "clear", &builtin_clear);
-    vm_add_builtin(vm, "pstack", &builtin_pstack);
+    vm_add_builtin(vm, "print_stack", &vm_print_stack);
 
     // initialize int cache
     for (int i = VM_MIN_CACHED_INT; i <= VM_MAX_CACHED_INT; i++) {
@@ -193,6 +184,13 @@ vm_t *vm_create() {
     }
     vm_init(vm);
     return vm;
+}
+
+void vm_print_stack(vm_t *vm) {
+    for (object_t **obj_ptr = vm->stack; obj_ptr <= vm->stack_top; obj_ptr++) {
+        object_print(*obj_ptr);
+        putc('\n', stdout);
+    }
 }
 
 void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
@@ -249,14 +247,36 @@ void vm_eval(vm_t *vm, code_t *code) {
             vm_push(vm, obj);
         } else {
             // operator
-            int op = instruction - FIRST_OPERATOR_INSTRUCTION;
-            const char *name = operator_names[op];
-            object_t *obj = vm_pop(vm);
-            object_getter(obj, name, vm);
+            int op = instruction - FIRST_OP_INSTR;
+            if (op >= FIRST_CMP_OP && op <= LAST_CMP_OP) {
+                object_t *self = vm_pop(vm);
+                object_t *other = vm_pop(vm);
+                cmp_result_t cmp = object_cmp(self, other);
+                bool b;
+                switch (instruction) {
+                    case INSTR_EQ: b = cmp == CMP_EQ; break;
+                    case INSTR_NE: b = cmp != CMP_EQ; break;
+                    case INSTR_LT: b = cmp == CMP_LT; break;
+                    case INSTR_LE: b = cmp == CMP_LT || cmp == CMP_EQ; break;
+                    case INSTR_GT: b = cmp == CMP_GT; break;
+                    case INSTR_GE: b = cmp == CMP_GT || cmp == CMP_EQ; break;
+                    default:
+                        // should never happen...
+                        fprintf(stderr, "Unknown instruction in vm_eval: %i\n", instruction);
+                        exit(1);
+                }
+                vm_push(vm, object_create_bool(b));
+            } else {
+                const char *name = operator_names[op];
+                object_t *obj = vm_pop(vm);
+                object_getter(obj, name, vm);
+            }
         }
 
         if (vm->debug_print_stack) {
-            builtin_pstack(vm);
+            printf("=== STACK:");
+            vm_print_stack(vm);
+            printf("=== END STACK");
         }
 
     }

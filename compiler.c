@@ -132,7 +132,7 @@ static const char *parse_name(const char *token) {
 }
 
 int parse_operator(const char *token) {
-    for (int op = 0; op < N_OPERATORS; op++) {
+    for (int op = 0; op < N_OPS; op++) {
         if (!strcmp(token, operator_names[op])) return op;
     }
     return -1;
@@ -200,7 +200,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_instruction(code, INSTR_SETTER);
             code_push_i(code, i);
         } else if ((op = parse_operator(token)) >= 0) {
-            code_push_instruction(code, FIRST_OPERATOR_INSTRUCTION + op);
+            code_push_instruction(code, FIRST_OP_INSTR + op);
         } else {
             // name
             const char *s = parse_name(token);

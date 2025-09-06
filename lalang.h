@@ -46,10 +46,10 @@ typedef void print_t(object_t *self);
 ****************/
 
 enum cmp_result {
-    CMP_LT,
-    CMP_GT,
     CMP_EQ,
-    CMP_NE
+    CMP_NE,
+    CMP_LT,
+    CMP_GT
 };
 
 
@@ -64,10 +64,10 @@ enum instruction {
     INSTR_GETTER,
     INSTR_SETTER,
 
-    // OPERATORS
+    // OPS
     // NOTE: the order of these is important!
-    // They come at the end of the enum, so that we can define N_OPERATORS in
-    // terms of FIRST_OPERATOR_INSTRUCTION and N_INSTRUCTIONS.
+    // They come at the end of the enum, so that we can define N_OPS in
+    // terms of FIRST_OP_INSTR and N_INSTRS.
     // And the order of the operators must of course match that of
     // operator_names.
     INSTR_NEG,
@@ -84,18 +84,18 @@ enum instruction {
     INSTR_GE,
     INSTR_CALL,
 
-    N_INSTRUCTIONS
+    N_INSTRS
 };
 
-#define FIRST_OPERATOR_INSTRUCTION INSTR_NEG
-#define FIRST_INT_OPERATOR (INSTR_NEG - FIRST_OPERATOR_INSTRUCTION)
-#define LAST_INT_OPERATOR (INSTR_MOD - FIRST_OPERATOR_INSTRUCTION)
-#define FIRST_CMP_OPERATOR (INSTR_EQ - FIRST_OPERATOR_INSTRUCTION)
-#define LAST_CMP_OPERATOR (INSTR_GE - FIRST_OPERATOR_INSTRUCTION)
-#define N_OPERATORS (N_INSTRUCTIONS - FIRST_OPERATOR_INSTRUCTION)
+#define FIRST_OP_INSTR INSTR_NEG
+#define FIRST_INT_OP (INSTR_NEG - FIRST_OP_INSTR)
+#define LAST_INT_OP (INSTR_MOD - FIRST_OP_INSTR)
+#define FIRST_CMP_OP (INSTR_EQ - FIRST_OP_INSTR)
+#define LAST_CMP_OP (INSTR_GE - FIRST_OP_INSTR)
+#define N_OPS (N_INSTRS - FIRST_OP_INSTR)
 
-extern const char *instruction_names[N_INSTRUCTIONS];
-extern const char *operator_names[N_OPERATORS];
+extern const char *instruction_names[N_INSTRS];
+extern const char *operator_names[N_OPS];
 
 union bytecode {
     instruction_t instruction;
@@ -293,6 +293,7 @@ object_t *vm_get_or_create_str(vm_t *vm, const char *s);
 object_t *vm_get_or_create_int(vm_t *vm, int i);
 
 vm_t *vm_create();
+void vm_print_stack(vm_t *vm);
 void vm_print_code(vm_t *vm, code_t *code);
 void vm_eval(vm_t *vm, code_t *code);
 

@@ -27,8 +27,9 @@ int main(int n_args, char **args) {
 
     char *line = NULL;
     size_t line_size = 0;
+    bool continuing_line = false;
     while (true) {
-        fputs("> ", stdout);
+        fputs(continuing_line? "... ": ">>> ", stdout);
         if (getline(&line, &line_size, stdin) < 0) {
             if (errno) {
                 fprintf(stderr, "Error getting line from stdin\n");
@@ -37,13 +38,15 @@ int main(int n_args, char **args) {
         }
         compiler_compile(compiler, line);
         code_t *code = compiler_pop_runnable_code(compiler);
-        if (code) {
+        if (code && code->len) {
             if (debug_print_code) {
                 printf("=== PARSED CODE:\n");
                 vm_print_code(vm, code);
                 printf("=== END CODE\n");
             }
             vm_eval(vm, code);
+            vm_print_stack(vm);
         }
+        continuing_line = !code;
     }
 }

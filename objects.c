@@ -345,7 +345,7 @@ void list_print(object_t *self) {
     list_t *list = self->data.ptr;
     putc('[', stdout);
     for (int i = 0; i < list->len; i++) {
-        if (i > 0) putc(' ', stdout);
+        if (i > 0) fputs(", ", stdout);
         object_print(list->elems[i]);
     }
     putc(']', stdout);
@@ -442,7 +442,7 @@ void dict_print(object_t *self) {
     putc('{', stdout);
     for (int i = 0; i < dict->len; i++) {
         dict_item_t *item = &dict->items[i];
-        if (i > 0) putc(' ', stdout);
+        if (i > 0) fputs(", ", stdout);
         printf("%s: ", item->name);
         object_print(item->value);
     }

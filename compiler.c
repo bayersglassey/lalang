@@ -199,10 +199,17 @@ void compiler_compile(compiler_t *compiler, char *text) {
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_SETTER);
             code_push_i(code, i);
+        } else if (first_c == '=') {
+            // store global
+            const char *s = parse_name(token + 1);
+            int i = vm_get_cached_str_i(vm, s);
+            code_push_instruction(code, INSTR_STORE_GLOBAL);
+            code_push_i(code, i);
         } else if ((op = parse_operator(token)) >= 0) {
+            // operator
             code_push_instruction(code, FIRST_OP_INSTR + op);
         } else {
-            // name
+            // load global
             const char *s = parse_name(token);
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_LOAD_GLOBAL);

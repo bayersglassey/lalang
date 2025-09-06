@@ -61,6 +61,7 @@ enum instruction {
     INSTR_LOAD_INT,
     INSTR_LOAD_STR,
     INSTR_LOAD_GLOBAL,
+    INSTR_STORE_GLOBAL,
     INSTR_GETTER,
     INSTR_SETTER,
 

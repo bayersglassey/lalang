@@ -10,6 +10,10 @@
 * BUILTIN FUNCTIONS
 *************************/
 
+void builtin_globals(vm_t *vm) {
+    vm_push(vm, object_create_dict(vm->globals));
+}
+
 void builtin_typeof(vm_t *vm) {
     object_t *self = vm_pop(vm);
     vm_push(vm, object_create_type(self->type));
@@ -162,6 +166,7 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "func", object_create_type(&func_type));
 
     // initialize function globals
+    vm_add_builtin(vm, "globals", &builtin_globals);
     vm_add_builtin(vm, "typeof", &builtin_typeof);
     vm_add_builtin(vm, "print", &builtin_print);
     vm_add_builtin(vm, "dup", &builtin_dup);
@@ -209,7 +214,10 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
     } else if (instruction == INSTR_LOAD_STR) {
         int j = code->bytecodes[++i].i;
         printf(" \"%s\"", vm->str_cache->items[j].name);
-    } else if (instruction == INSTR_GETTER || instruction == INSTR_SETTER || instruction == INSTR_LOAD_GLOBAL) {
+    } else if (
+        instruction == INSTR_GETTER || instruction == INSTR_SETTER ||
+        instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_STORE_GLOBAL
+    ) {
         int j = code->bytecodes[++i].i;
         printf(" %s", vm->str_cache->items[j].name);
     }
@@ -251,6 +259,11 @@ void vm_eval(vm_t *vm, code_t *code) {
                 exit(1);
             }
             vm_push(vm, obj);
+        } else if (instruction == INSTR_STORE_GLOBAL) {
+            int j = code->bytecodes[++i].i;
+            const char *name = vm->str_cache->items[j].name;
+            object_t *obj = vm_pop(vm);
+            dict_set(vm->globals, name, obj);
         } else {
             // operator
             int op = instruction - FIRST_OP_INSTR;

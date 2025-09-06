@@ -52,6 +52,8 @@ enum cmp_result {
     CMP_GT
 };
 
+char *read_file(const char *filename, bool binary);
+
 
 /****************
 * CODE
@@ -294,6 +296,7 @@ int vm_get_size(vm_t *vm);
 object_t *vm_get(vm_t *vm, int i);
 void vm_set(vm_t *vm, int i, object_t *obj);
 object_t *vm_top(vm_t *vm);
+void vm_drop(vm_t *vm, int n);
 object_t *vm_pop(vm_t *vm);
 void vm_push(vm_t *vm, object_t *obj);
 int vm_get_cached_str_i(vm_t *vm, const char *s);

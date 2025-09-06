@@ -88,6 +88,19 @@ void builtin_clear(vm_t *vm) {
     vm->stack_top = vm->stack - 1;
 }
 
+void builtin_include(vm_t *vm) {
+    const char *filename = object_to_str(vm_pop(vm));
+    char *text = read_file(filename, false);
+    compiler_t *compiler = compiler_create(vm);
+    compiler_compile(compiler, text);
+    code_t *code = compiler_pop_runnable_code(compiler);
+    if (!code) {
+        fprintf(stderr, "Mismatched '{'\n");
+        exit(1);
+    }
+    vm_eval(vm, code);
+}
+
 
 /****************
 * VM
@@ -117,6 +130,15 @@ void vm_set(vm_t *vm, int i, object_t *obj) {
 
 object_t *vm_top(vm_t *vm) {
     return vm_get(vm, 0);
+}
+
+void vm_drop(vm_t *vm, int n) {
+    int size = vm_get_size(vm);
+    if (n > size) {
+        fprintf(stderr, "Tried to pop %i items from stack of size %i\n", n, size);
+        exit(1);
+    }
+    vm->stack_top -= n;
 }
 
 object_t *vm_pop(vm_t *vm) {
@@ -214,6 +236,7 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "set", &builtin_set);
     vm_add_builtin(vm, "clear", &builtin_clear);
     vm_add_builtin(vm, "print_stack", &vm_print_stack);
+    vm_add_builtin(vm, "include", &builtin_include);
 
     // initialize int cache
     for (int i = VM_MIN_CACHED_INT; i <= VM_MAX_CACHED_INT; i++) {

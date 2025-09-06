@@ -181,7 +181,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
                     fprintf(stderr, "Integer literal contains non-digit at position %i: [%s]\n", j, token);
                     exit(1);
                 }
-                i = i * 10 + c;
+                i = i * 10 + (c - '0');
             }
             code_push_instruction(code, INSTR_LOAD_INT);
             code_push_i(code, i);

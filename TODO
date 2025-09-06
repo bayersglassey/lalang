@@ -5,3 +5,5 @@
 [ ] custom classes
 [ ] local variables
 [ ] unit tests
+[X] modules
+[ ] C extensions

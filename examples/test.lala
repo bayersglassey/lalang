@@ -1,28 +1,22 @@
 
-{2 *} =double
+"a" "b" "c" 3 @list =l
 
-3 double @ print
+1 l .get @print # "b"
 
+"x" 10 "y" 20 2 @dict =d
 
-{*} =times
+"x" d .get @print # 10
 
-
-"Hello world" =msg
-msg print
-
-{print} 3 for
-
-[] =stuff
-{stuff .append} 3 for
-stuff print
-
-
-[1 2 3] =stuff
-{} stuff for
-
-
-{1 +} =add1
+0 =i { i 5 < } { i @print i 1 + =i } @while # 0 1 2 3 4
 
 {
+    @dup 1 <=
+    { @drop 1 }
+    { @dup 1 - @factorial * }
+    @ifelse
+} =factorial
 
-}
+1 @factorial @print # 1
+2 @factorial @print # 2
+3 @factorial @print # 6
+4 @factorial @print # 24

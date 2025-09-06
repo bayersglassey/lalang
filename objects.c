@@ -353,7 +353,16 @@ void list_print(object_t *self) {
 
 bool list_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "@")) {
-        vm_push(vm, object_create_list(NULL));
+        int n = object_to_int(vm_pop(vm));
+        int size = vm_get_size(vm);
+        if (n > size) {
+            fprintf(stderr, "Tried to build a list of size %i from a stack of size %i\n", n, size);
+            exit(1);
+        }
+        list_t *list = list_create();
+        for (int i = n - 1; i >= 0; i--) list_push(list, vm->stack_top[-i]);
+        vm->stack_top -= n;
+        vm_push(vm, object_create_list(list));
     } else return false;
     return true;
 }
@@ -451,7 +460,19 @@ void dict_print(object_t *self) {
 
 bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "@")) {
-        vm_push(vm, object_create_dict(NULL));
+        int n = object_to_int(vm_pop(vm));
+        int size = vm_get_size(vm);
+        if (n * 2 > size) {
+            fprintf(stderr, "Tried to build a dict of size %i (requiring %i inputs) from a stack of size %i\n", n, n * 2, size);
+            exit(1);
+        }
+        dict_t *dict = dict_create();
+        for (int i = n - 1; i >= 0; i--) {
+            const char *name = object_to_str(vm->stack_top[-i * 2 - 1]);
+            dict_set(dict, name, vm->stack_top[-i * 2]);
+        }
+        vm->stack_top -= n * 2;
+        vm_push(vm, object_create_dict(dict));
     } else return false;
     return true;
 }

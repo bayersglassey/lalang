@@ -1,0 +1,211 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+
+#include "lalang.h"
+
+
+/*************************
+* BUILTIN FUNCTIONS
+*************************/
+
+void builtin_print(vm_t *vm) {
+    object_t *self = vm_pop(vm);
+    object_print(self);
+}
+
+void builtin_dup(vm_t *vm) {
+    vm_push(vm, vm_top(vm));
+}
+
+void builtin_drop(vm_t *vm) {
+    vm_pop(vm);
+}
+
+void builtin_swap(vm_t *vm) {
+    object_t *y = vm_pop(vm);
+    object_t *x = vm_pop(vm);
+    vm_push(vm, y);
+    vm_push(vm, x);
+}
+
+void builtin_get(vm_t *vm) {
+    object_t *i_obj = vm_pop(vm);
+    int i = object_to_int(i_obj);
+    vm_push(vm, vm_get(vm, i));
+}
+
+void builtin_set(vm_t *vm) {
+    object_t *i_obj = vm_pop(vm);
+    int i = object_to_int(i_obj);
+    object_t *obj = vm_pop(vm);
+    vm_set(vm, i, obj);
+}
+
+void builtin_pstack(vm_t *vm) {
+    printf("=== STACK:\n");
+    for (object_t **obj_ptr = vm->stack; obj_ptr <= vm->stack_top; obj_ptr++) {
+        object_print(*obj_ptr);
+        putc('\n', stdout);
+    }
+    printf("=== END STACK\n");
+}
+
+
+/****************
+* VM
+****************/
+
+int vm_get_size(vm_t *vm) {
+    return vm->stack_top - vm->stack + 1;
+}
+
+object_t *vm_get(vm_t *vm, int i) {
+    int size = vm_get_size(vm);
+    if (i < 0 || i >= size) {
+        fprintf(stderr, "Can't get at index %i from stack of size %i\n", i, size);
+        exit(1);
+    }
+    return vm->stack_top[-1];
+}
+
+void vm_set(vm_t *vm, int i, object_t *obj) {
+    int size = vm_get_size(vm);
+    if (i < 0 || i >= size) {
+        fprintf(stderr, "Can't set at index %i in stack of size %i\n", i, size);
+        exit(1);
+    }
+    vm->stack_top[-1] = obj;
+}
+
+object_t *vm_top(vm_t *vm) {
+    return vm_get(vm, 0);
+}
+
+object_t *vm_pop(vm_t *vm) {
+    if (vm->stack_top < vm->stack) {
+        fprintf(stderr, "Tried to pop fom an empty stack!\n");
+        exit(1);
+    }
+    return *(vm->stack_top--);
+}
+
+void vm_push(vm_t *vm, object_t *obj) {
+    if (vm->stack_top >= vm->stack + VM_STACK_SIZE) {
+        fprintf(stderr, "Out of stack space!\n");
+        exit(1);
+    }
+    *(vm->stack_top--) = obj;
+}
+
+int vm_get_cached_str_i(vm_t *vm, const char *s) {
+    dict_t *dict = vm->str_cache;
+    dict_item_t *item = dict_get_item(dict, s);
+    if (item) {
+        return item - dict->items;
+    } else {
+        object_t *obj = object_create_str(s);
+        dict_set(dict, s, obj);
+        return dict->len - 1;
+    }
+}
+
+object_t *vm_get_cached_str(vm_t *vm, const char *s) {
+    // returns a cached str object, creating it if necessary
+    int i = vm_get_cached_str_i(vm, s);
+    return vm->str_cache->items[i].value;
+}
+
+object_t *vm_get_or_create_str(vm_t *vm, const char *s) {
+    // returns a cached str object, or a fresh (uncached) one
+    object_t *obj = dict_get(vm->str_cache, s);
+    if (obj) return obj;
+    else return object_create_str(s);
+}
+
+object_t *vm_get_or_create_int(vm_t *vm, int i) {
+    if (i >= VM_MIN_CACHED_INT && i <= VM_MAX_CACHED_INT) {
+        return vm->int_cache[i - VM_MIN_CACHED_INT];
+    } else {
+        object_t *obj = object_create(&int_type);
+        obj->data.i = i;
+        return obj;
+    }
+}
+
+void vm_add_builtin(vm_t *vm, const char *name, c_code_t *code) {
+    dict_set(vm->globals, name, object_create_func_c_code(name, code, NULL));
+}
+
+void vm_init(vm_t *vm) {
+    // initialize stack
+    vm->stack_top = vm->stack - 1;
+
+    // initialize globals
+    vm->globals = dict_create();
+
+    // initialize singleton globals
+    dict_set(vm->globals, "null", &lala_null);
+    dict_set(vm->globals, "true", &lala_true);
+    dict_set(vm->globals, "false", &lala_false);
+
+    // initialize type globals
+    dict_set(vm->globals, "nulltype", object_create_type(&null_type));
+    dict_set(vm->globals, "bool", object_create_type(&bool_type));
+    dict_set(vm->globals, "int", object_create_type(&int_type));
+    dict_set(vm->globals, "str", object_create_type(&str_type));
+    dict_set(vm->globals, "list", object_create_type(&list_type));
+    dict_set(vm->globals, "dict", object_create_type(&dict_type));
+    dict_set(vm->globals, "func", object_create_type(&func_type));
+
+    // initialize function globals
+    vm_add_builtin(vm, "print", &builtin_print);
+    vm_add_builtin(vm, "dup", &builtin_dup);
+    vm_add_builtin(vm, "drop", &builtin_drop);
+    vm_add_builtin(vm, "swap", &builtin_swap);
+    vm_add_builtin(vm, "get", &builtin_get);
+    vm_add_builtin(vm, "set", &builtin_set);
+    vm_add_builtin(vm, "pstack", &builtin_pstack);
+
+    // initialize int cache
+    for (int i = VM_MIN_CACHED_INT; i <= VM_MAX_CACHED_INT; i++) {
+        vm->int_cache[i - VM_MIN_CACHED_INT] = object_create_int(i);
+    }
+
+    // initialize str cache (i.e. the "string pool")
+    vm->str_cache = dict_create();
+
+}
+
+vm_t *vm_create() {
+    vm_t *vm = calloc(1, sizeof *vm);
+    if (!vm) {
+        fprintf(stderr, "Failed to allocate memory for VM\n");
+        exit(1);
+    }
+    vm_init(vm);
+    return vm;
+}
+
+void vm_print_code(vm_t *vm, code_t *code) {
+    for (int i = 0; i < code->len; i++) {
+        instruction_t instruction = code->bytecodes[i].instruction;
+        fputs(instruction_name[instruction], stdout);
+        if (instruction == INSTR_LOAD_INT) {
+            printf(" %i", code->bytecodes[++i].i);
+        } else if (instruction == INSTR_LOAD_STR) {
+            int j = code->bytecodes[++i].i;
+            printf(" \"%s\"", vm->str_cache->items[j].name);
+        } else if (instruction == INSTR_GETTER || instruction == INSTR_SETTER || instruction == INSTR_LOAD_GLOBAL) {
+            int j = code->bytecodes[++i].i;
+            printf(" %s", vm->str_cache->items[j].name);
+        }
+        putc('\n', stdout);
+    }
+}
+
+void vm_eval(vm_t *vm, code_t *code) {
+    fprintf(stderr, "TODO\n");
+    exit(1);
+}

@@ -146,12 +146,16 @@ extern object_t lala_false ;
 * INT
 ****************/
 
+object_t *object_create_int(int i);
+
 extern type_t int_type;
 
 
 /****************
 * STR
 ****************/
+
+object_t *object_create_str(const char *s);
 
 extern type_t str_type;
 
@@ -191,6 +195,7 @@ struct dict {
 
 dict_t *dict_create();
 object_t *object_create_dict(dict_t *dict);
+dict_item_t *dict_get_item(dict_t *dict, const char *name);
 object_t *dict_get(dict_t *dict, const char *name);
 void dict_set(dict_t *dict, const char *name, object_t *value);
 
@@ -230,6 +235,9 @@ struct func {
     list_t *args;
 };
 
+object_t *object_create_func_c_code(const char *name, c_code_t *c_code, list_t *args);
+object_t *object_create_func_code(const char *name, code_t *code, list_t *args);
+
 extern type_t func_type;
 
 
@@ -263,6 +271,7 @@ object_t *vm_get_or_create_str(vm_t *vm, const char *s);
 object_t *vm_get_or_create_int(vm_t *vm, int i);
 
 vm_t *vm_create();
+void vm_print_code(vm_t *vm, code_t *code);
 void vm_eval(vm_t *vm, code_t *code);
 
 
@@ -277,10 +286,11 @@ struct compiler_frame {
 };
 
 struct compiler {
-    bool debug;
     vm_t *vm;
     compiler_frame_t frames[COMPILER_STACK_SIZE];
     compiler_frame_t *frame;
+
+    bool debug_print_tokens;
 };
 
 compiler_t *compiler_create(vm_t *vm);

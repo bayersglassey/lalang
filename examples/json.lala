@@ -1,0 +1,22 @@
+
+
+{
+    ='text
+    text .len ='len
+    0 ='i
+    0 @list ='stack
+    { i len < } {
+        i text .get ='c
+        c "\"" == {
+        } @if
+    } @while
+} =parse
+
+
+"{\"stuff\": [1, null, \"hello\"]}" @parse =obj
+
+"stuff" obj .get =stuff
+{ ! { "Assertion failed!" @error } @if } =assert
+0 stuff .get 1 == @assert
+1 stuff .get null == @assert
+2 stuff .get "hello" == @assert

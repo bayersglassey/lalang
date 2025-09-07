@@ -1,0 +1,13 @@
+
+{
+    ='n
+    n 1 <=
+    { 1 }
+    { n ( ( n 1 - ) @factorial ) * }
+    @ifelse
+} =factorial
+
+1 @factorial @print # 1
+2 @factorial @print # 2
+3 @factorial @print # 6
+4 @factorial @print # 24

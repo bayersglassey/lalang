@@ -313,6 +313,7 @@ struct vm {
     object_t **stack_top;
     object_t *int_cache[VM_INT_CACHE_SIZE];
     dict_t *str_cache;
+    object_t *char_cache[256];
     list_t *code_cache;
     dict_t *globals;
 
@@ -330,6 +331,7 @@ void vm_push(vm_t *vm, object_t *obj);
 int vm_get_cached_str_i(vm_t *vm, const char *s);
 object_t *vm_get_cached_str(vm_t *vm, const char *s);
 object_t *vm_get_or_create_str(vm_t *vm, const char *s);
+object_t *vm_get_char_str(vm_t *vm, char c);
 object_t *vm_get_or_create_int(vm_t *vm, int i);
 void vm_push_code(vm_t *vm, code_t *code);
 

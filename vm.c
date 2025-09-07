@@ -199,6 +199,10 @@ object_t *vm_get_or_create_str(vm_t *vm, const char *s) {
     else return object_create_str(s);
 }
 
+object_t *vm_get_char_str(vm_t *vm, char c) {
+    return vm->char_cache[(unsigned char)c];
+}
+
 object_t *vm_get_or_create_int(vm_t *vm, int i) {
     if (i >= VM_MIN_CACHED_INT && i <= VM_MAX_CACHED_INT) {
         return vm->int_cache[i - VM_MIN_CACHED_INT];
@@ -265,6 +269,20 @@ void vm_init(vm_t *vm) {
 
     // initialize str cache (i.e. the "string pool")
     vm->str_cache = dict_create();
+
+    // initialize char cache
+    vm->char_cache[0] = vm_get_or_create_str(vm, "");
+    for (int i = 1; i < 256; i++) {
+        // TODO: keep these somewhere global, no need for malloc :P
+        char *s = malloc(2);
+        if (!s) {
+            fprintf(stderr, "Failed to allocate small string for char %i\n", i);
+            exit(1);
+        }
+        s[0] = (char)(unsigned char)i;
+        s[1] = '\0';
+        vm->char_cache[i] = vm_get_or_create_str(vm, s);
+    }
 
     // initialize code cache
     vm->code_cache = list_create();

@@ -321,8 +321,21 @@ cmp_result_t str_cmp(object_t *self, object_t *other) {
 }
 
 bool str_getter(object_t *self, const char *name, vm_t *vm) {
+    const char *s = self->data.ptr;
     if (!strcmp(name, "write")) {
-        fputs(self->data.ptr, stdout);
+        fputs(s, stdout);
+    } else if (!strcmp(name, "len")) {
+        int len = strlen(s);
+        vm_push(vm, vm_get_or_create_int(vm, len));
+    } else if (!strcmp(name, "get")) {
+        int i = object_to_int(vm_pop(vm));
+        int len = strlen(s);
+        if (i < 0 || i >= len) {
+            fprintf(stderr, "Attempted to get at index %i of str of size %i\n", i, len);
+            exit(1);
+        }
+        char c = s[i];
+        vm_push(vm, vm_get_char_str(vm, c));
     } else return false;
     return true;
 }
@@ -357,7 +370,7 @@ object_t *object_create_list(list_t *list) {
 
 object_t *list_get(list_t *list, int i) {
     if (i < 0 || i >= list->len) {
-        fprintf(stderr, "List access out of bounds: %i\n", i);
+        fprintf(stderr, "Attempted to get at index %i of list of size %i\n", i, list->len);
         exit(1);
     }
     return list->elems[i];
@@ -369,7 +382,7 @@ void list_set(list_t *list, int i, object_t *value) {
         exit(1);
     }
     if (i < 0 || i >= list->len) {
-        fprintf(stderr, "List access out of bounds: %i\n", i);
+        fprintf(stderr, "Attempted to set at index %i of list of size %i\n", i, list->len);
         exit(1);
     }
     list->elems[i] = value;

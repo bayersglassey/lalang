@@ -54,7 +54,7 @@ type_t type_type = {
     .setter = type_setter,
 };
 
-object_t lala_type = {
+object_t static_type = {
     .type = &type_type,
 };
 
@@ -133,7 +133,7 @@ void object_print(object_t *self) {
 ****************/
 
 object_t *object_create_null() {
-    return &lala_null;
+    return &static_null;
 }
 
 void null_print(object_t *self) {
@@ -150,7 +150,7 @@ type_t null_type = {
     .to_bool = null_to_bool,
 };
 
-object_t lala_null = {
+object_t static_null = {
     .type = &null_type,
 };
 
@@ -160,7 +160,7 @@ object_t lala_null = {
 ****************/
 
 object_t *object_create_bool(bool b) {
-    return b? &lala_true: &lala_false;
+    return b? &static_true: &static_false;
 }
 
 void bool_print(object_t *self) {
@@ -209,12 +209,12 @@ type_t bool_type = {
     .getter = bool_getter,
 };
 
-object_t lala_true = {
+object_t static_true = {
     .type = &bool_type,
     .data.i = 1,
 };
 
-object_t lala_false = {
+object_t static_false = {
     .type = &bool_type,
     .data.i = 0,
 };
@@ -659,12 +659,9 @@ object_t *object_create_func(const char *name, code_t *code, list_t *args) {
 void func_print(object_t *self) {
     func_t *func = self->data.ptr;
     const char *name = func->name? func->name: "(no name)";
-    int n_args = func->args->len;
-    if (func->is_c_code) {
-        printf("<built-in function %s with %i baked-in args>", name, n_args);
-    } else {
-        printf("<function %s at %p with %i baked-in args>", name, func->u.code, n_args);
-    }
+    printf("<%s %s at %p>",
+        func->is_c_code? "built-in function": "function",
+        name, self);
 }
 
 bool func_getter(object_t *self, const char *name, vm_t *vm) {
@@ -678,14 +675,30 @@ bool func_getter(object_t *self, const char *name, vm_t *vm) {
         } else {
             vm_eval(vm, func->u.code);
         }
-        return true;
+    } else if (!strcmp(name, "args")) {
+        vm_push(vm, object_create_list(func->args));
     } else return false;
+    return true;
+}
+
+bool func_setter(object_t *self, const char *name, vm_t *vm) {
+    func_t *func = self->data.ptr;
+    if (!strcmp(name, "args")) {
+        object_t *obj = vm_pop(vm);
+        if (obj->type != &list_type) {
+            fprintf(stderr, "Tried to assign '%s' object to func args\n", obj->type->name);
+            exit(1);
+        }
+        func->args = obj->data.ptr;
+    } else return false;
+    return true;
 }
 
 type_t func_type = {
     .name = "func",
     .print = func_print,
     .getter = func_getter,
+    .setter = func_setter,
 };
 
 

@@ -151,7 +151,7 @@ struct type {
 object_t *object_create_type(type_t *type);
 
 extern type_t type_type;
-extern object_t lala_type;
+extern object_t static_type;
 
 
 /****************
@@ -183,7 +183,7 @@ void object_print(object_t *self);
 object_t *object_create_null();
 
 extern type_t null_type;
-extern object_t lala_null;
+extern object_t static_null;
 
 
 /****************
@@ -193,8 +193,8 @@ extern object_t lala_null;
 object_t *object_create_bool(bool b);
 
 extern type_t bool_type;
-extern object_t lala_true;
-extern object_t lala_false ;
+extern object_t static_true;
+extern object_t static_false;
 
 
 /****************

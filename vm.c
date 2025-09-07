@@ -227,13 +227,9 @@ void vm_init(vm_t *vm) {
 
     // initialize globals
     vm->globals = dict_create();
-
-    // initialize singleton globals
-    dict_set(vm->globals, "null", &lala_null);
-    dict_set(vm->globals, "true", &lala_true);
-    dict_set(vm->globals, "false", &lala_false);
-
-    // initialize type globals
+    dict_set(vm->globals, "null", &static_null);
+    dict_set(vm->globals, "true", &static_true);
+    dict_set(vm->globals, "false", &static_false);
     dict_set(vm->globals, "type", object_create_type(&type_type));
     dict_set(vm->globals, "nulltype", object_create_type(&null_type));
     dict_set(vm->globals, "bool", object_create_type(&bool_type));
@@ -243,7 +239,7 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "dict", object_create_type(&dict_type));
     dict_set(vm->globals, "func", object_create_type(&func_type));
 
-    // initialize function globals
+    // initialize builtins (i.e. C function globals)
     vm_add_builtin(vm, "is", &builtin_is);
     vm_add_builtin(vm, "if", &builtin_if);
     vm_add_builtin(vm, "ifelse", &builtin_ifelse);

@@ -175,10 +175,14 @@ void compiler_compile(compiler_t *compiler, char *text) {
         int op;
         if (!strcmp(token, ">>>") || !strcmp(token, "...")) {
             // just ignore these, so we can copy-paste from/to the REPL!
-        } else if (first_c >= '0' && first_c <= '9') {
+        } else if (
+            first_c >= '0' && first_c <= '9' ||
+            first_c == '-' && token[1] >= '0' && token[1] <= '9'
+        ) {
             // int literal
-            int i = first_c - '0';
-            for (int j = 1; j < token_len; j++) {
+            bool neg = first_c == '-';
+            int i = token[neg] - '0';
+            for (int j = neg + 1; j < token_len; j++) {
                 char c = token[j];
                 if (c < '0' || c > '9') {
                     fprintf(stderr, "Integer literal contains non-digit at position %i: [%s]\n", j, token);
@@ -187,7 +191,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
                 i = i * 10 + (c - '0');
             }
             code_push_instruction(code, INSTR_LOAD_INT);
-            code_push_i(code, i);
+            code_push_i(code, neg? -i: i);
         } else if (first_c == '"') {
             // str literal
             if (token_len < 2 || token[token_len - 1] != '"') {

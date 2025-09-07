@@ -6,7 +6,6 @@
 [ ] locals
 [ ] parentheses, i.e. stack assertions
 [X] single-character string cache, "abc" .get should be "a", etc
-[ ] negative int literals :P
 [ ] unit tests
 [X] modules
 [ ] C extensions

@@ -237,6 +237,9 @@ struct list {
 };
 
 list_t *list_create();
+list_t *list_copy(list_t *list);
+void list_grow(list_t *list, int new_len);
+void list_extend(list_t *list, list_t *other);
 object_t *object_create_list(list_t *list);
 object_t *list_get(list_t *list, int i);
 void list_set(list_t *list, int i, object_t *value);
@@ -261,10 +264,12 @@ struct dict {
 };
 
 dict_t *dict_create();
+dict_t *dict_copy(dict_t *dict);
 object_t *object_create_dict(dict_t *dict);
 dict_item_t *dict_get_item(dict_t *dict, const char *name);
 object_t *dict_get(dict_t *dict, const char *name);
 void dict_set(dict_t *dict, const char *name, object_t *value);
+void dict_update(dict_t *dict, dict_t *other);
 
 extern type_t dict_type;
 
@@ -328,6 +333,7 @@ struct vm {
     object_t *char_cache[256];
     list_t *code_cache;
     dict_t *globals;
+    dict_t *locals; // may be NULL
 
     bool debug_print_stack;
     bool debug_print_eval;
@@ -372,6 +378,7 @@ struct compiler {
     compiler_frame_t *last_func_frame;
 
     bool debug_print_tokens;
+    bool debug_print_code;
 };
 
 compiler_t *compiler_create(vm_t *vm);

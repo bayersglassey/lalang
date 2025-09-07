@@ -3,11 +3,17 @@
 [X] conditionals
 [X] custom classes
 [ ] iterators
-[ ] locals
+[ ] standard library
+[ ] cli options
+[X] locals
+[ ] we have func->args, how about func->kwargs?.. i.e. stored locals?..
+    we could probably even handle this in the compiler, if we detect references
+    within a func (i.e. is_func=true) to variables belonging to a parent func
 [ ] parentheses, i.e. stack assertions
 [X] single-character string cache, "abc" .get should be "a", etc
 [ ] unit tests
 [X] modules
 [ ] C extensions
+    ...see extensions/nlist.c!.. need to compile it, and implement a @cimport builtin
 [ ] break, continue, return?..
 [ ] use from Python

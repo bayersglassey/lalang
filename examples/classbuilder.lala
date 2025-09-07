@@ -1,0 +1,58 @@
+
+[ {
+    @locals .copy =attrs
+    =name
+    name @class =cls
+
+    0 =i { i attrs .len < } {
+        i attrs .get_item =key =value
+        value @typeof func == {
+            value key cls .__getters__ .set
+        } {
+            value key cls .__dict__ .set
+        } @ifelse
+        i 1 + =i
+    } @while
+    
+    cls name @globals .set
+} ] @ =buildclass
+
+
+{
+    @locals
+    [
+        =locals =cls
+        cls .__dict__ locals .update
+        cls .__getters__ locals .update
+    ] @
+} =inherit
+
+
+##############################################################
+# TESTS
+
+[
+    "hello" =message
+    [ =self self =.x self ] =__init__
+    [ .x 1 + ] =y
+    "A" @buildclass
+] @
+
+"A test:\n" .write
+3 @A =a
+a .message @print
+a .x @print
+a .y @print
+
+
+[
+    A @inherit
+    [ .x 10 * ] =y
+    "B" @buildclass
+] @
+
+"B test:\n" .write
+4 @B =b
+b .message @print
+b .x @print
+b .y @print

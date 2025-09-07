@@ -50,6 +50,10 @@ void builtin_globals(vm_t *vm) {
     vm_push(vm, object_create_dict(vm->globals));
 }
 
+void builtin_locals(vm_t *vm) {
+    vm_push(vm, vm->locals? object_create_dict(vm->locals): object_create_null());
+}
+
 void builtin_typeof(vm_t *vm) {
     object_t *self = vm_pop(vm);
     vm_push(vm, object_create_type(self->type));
@@ -77,14 +81,12 @@ void builtin_swap(vm_t *vm) {
 }
 
 void builtin_get(vm_t *vm) {
-    object_t *i_obj = vm_pop(vm);
-    int i = object_to_int(i_obj);
+    int i = object_to_int(vm_pop(vm));
     vm_push(vm, vm_get(vm, i));
 }
 
 void builtin_set(vm_t *vm) {
-    object_t *i_obj = vm_pop(vm);
-    int i = object_to_int(i_obj);
+    int i = object_to_int(vm_pop(vm));
     object_t *obj = vm_pop(vm);
     vm_set(vm, i, obj);
 }
@@ -225,6 +227,9 @@ void vm_init(vm_t *vm) {
     // initialize stack
     vm->stack_top = vm->stack - 1;
 
+    // initialize locals
+    vm->locals = NULL;
+
     // initialize globals
     vm->globals = dict_create();
     dict_set(vm->globals, "null", &static_null);
@@ -245,6 +250,7 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "ifelse", &builtin_ifelse);
     vm_add_builtin(vm, "while", &builtin_while);
     vm_add_builtin(vm, "globals", &builtin_globals);
+    vm_add_builtin(vm, "locals", &builtin_locals);
     vm_add_builtin(vm, "typeof", &builtin_typeof);
     vm_add_builtin(vm, "print", &builtin_print);
     vm_add_builtin(vm, "dup", &builtin_dup);
@@ -331,6 +337,11 @@ void vm_print_code(vm_t *vm, code_t *code) {
 }
 
 void vm_eval(vm_t *vm, code_t *code) {
+    dict_t *prev_locals;
+    if (code->is_func) {
+        prev_locals = vm->locals;
+        vm->locals = dict_create();
+    }
     for (int i = 0; i < code->len; i++) {
 
         if (vm->debug_print_eval) {
@@ -361,15 +372,16 @@ void vm_eval(vm_t *vm, code_t *code) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;
             object_t *obj;
-            if (instruction == INSTR_LOAD_LOCAL || instruction == INSTR_CALL_LOCAL) {
-                fprintf(stderr, "TODO\n");
+            bool local = instruction == INSTR_LOAD_LOCAL || instruction == INSTR_CALL_LOCAL;
+            dict_t *vars = local? vm->locals: vm->globals;
+            if (!vars) {
+                fprintf(stderr, "Tried to store to local variable '%s', but there are no locals\n", name);
                 exit(1);
-            } else {
-                obj = dict_get(vm->globals, name);
-                if (!obj) {
-                    fprintf(stderr, "Global not found: %s\n", name);
-                    exit(1);
-                }
+            }
+            obj = dict_get(vars, name);
+            if (!obj) {
+                fprintf(stderr, "%s variable not found: %s\n", local? "Local": "Global", name);
+                exit(1);
             }
             if (instruction == INSTR_CALL_GLOBAL || instruction == INSTR_CALL_LOCAL) {
                 object_getter(obj, "@", vm);
@@ -380,10 +392,13 @@ void vm_eval(vm_t *vm, code_t *code) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;
             object_t *obj = vm_pop(vm);
-            if (instruction == INSTR_STORE_LOCAL) {
-                fprintf(stderr, "TODO\n");
+            bool local = instruction == INSTR_STORE_LOCAL;
+            dict_t *vars = local? vm->locals: vm->globals;
+            if (!vars) {
+                fprintf(stderr, "Tried to store to local variable '%s', but there are no locals\n", name);
                 exit(1);
-            } else dict_set(vm->globals, name, obj);
+            }
+            dict_set(vars, name, obj);
         } else {
             // operator
             int op = instruction - FIRST_OP_INSTR;
@@ -418,5 +433,8 @@ void vm_eval(vm_t *vm, code_t *code) {
             printf("=== END STACK");
         }
 
+    }
+    if (code->is_func) {
+        vm->locals = prev_locals;
     }
 }

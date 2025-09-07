@@ -1,25 +1,39 @@
 
+"List test:\n" .write
 "a" "b" "c" 3 @list =l
-
 1 l .get @print # "b"
 
-"x" 10 "y" 20 2 @dict =d
+"List copy test:\n" .write
+l .copy =l2
+"d" l2 .push
+l @print
+l2 @print
 
+"Dict test:\n" .write
+"x" 10 "y" 20 2 @dict =d
 "x" d .get @print # 10
 
+"Dict copy test:\n" .write
+d .copy =d2
+30 "z" d2 .set
+d @print
+d2 @print
+
+"While test:\n" .write
 0 =i { i 5 < } { i @print i 1 + =i } @while # 0 1 2 3 4
 
+"Func args test:\n" .write
 { + } =add10
 10 1 @list add10 =.args
 5 @add10 @print # 15
 
+"Recursion test:\n" .write
 {
     @dup 1 <=
     { @drop 1 }
     { @dup 1 - @factorial * }
     @ifelse
 } =factorial
-
 1 @factorial @print # 1
 2 @factorial @print # 2
 3 @factorial @print # 6

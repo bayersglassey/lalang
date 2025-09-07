@@ -30,6 +30,25 @@ static compiler_frame_t *compiler_push_frame(compiler_t *compiler, bool is_func)
     return frame;
 }
 
+static instruction_t compiler_process_global_ref(
+    compiler_t *compiler, instruction_t instruction, int str_cache_i
+) {
+    // Takes a GLOBAL instruction, plus its string cache index (i.e. the .i
+    // of the following bytecode).
+    // Returns the instruction, *or* the instruction converted to LOCAL,
+    // depending on whether we're in a function scope and the string is known
+    // to be in that function's locals...
+    compiler_frame_t *last_func_frame = compiler->last_func_frame;
+    if (last_func_frame) {
+        for (int j = 0; j < last_func_frame->n_locals; j++) {
+            // Check whether
+            if (last_func_frame->locals[j] != str_cache_i) continue;
+            return instruction + N_GLOBAL_INSTRS; // convert to LOCAL
+        }
+    }
+    return instruction;
+}
+
 static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
     if (compiler->frame < compiler->frames) {
         fprintf(stderr, "Tried to pop from an empty frame stack\n");
@@ -37,25 +56,8 @@ static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
     }
     compiler_frame_t *popped_frame = compiler->frame--;
     if (popped_frame == compiler->last_func_frame) {
-        // update our code, so that local variable references use the LOCAL
-        // variants of the GLOBAL bytecode instructions we compiled
-        code_t *code = popped_frame->code;
-        for (int i = 0; i < code->len; i++) {
-            instruction_t instruction = code->bytecodes[i].instruction;
-            if (
-                instruction >= FIRST_GLOBAL_INSTR &&
-                instruction <= LAST_GLOBAL_INSTR
-            ) {
-                for (int j = 0; j < popped_frame->n_locals; j++) {
-                    if (popped_frame->locals[j] != code->bytecodes[i + 1].i) continue;
-                    code->bytecodes[i].instruction = instruction + N_GLOBAL_INSTRS; // convert to LOCAL
-                    break;
-                }
-            }
-            i += instruction_args(instruction);
-        }
-
-        // find the previous func frame, if any
+        // we were the last "func frame", but now we're being popped, so find
+        // the previous "func frame"
         compiler->last_func_frame = NULL;
         for (compiler_frame_t *frame = compiler->frame; frame >= compiler->frames; frame--) {
             if (frame->code->is_func) {
@@ -63,6 +65,11 @@ static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
                 break;
             }
         }
+    }
+    if (compiler->debug_print_code) {
+        printf("=== PARSED CODE:\n");
+        vm_print_code(compiler->vm, popped_frame->code);
+        printf("=== END CODE\n");
     }
     free(popped_frame->locals); // currently our only use of free in this codebase... hooray?
     return popped_frame;
@@ -269,13 +276,25 @@ void compiler_compile(compiler_t *compiler, char *text) {
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_SETTER);
             code_push_i(code, i);
-        } else if (first_c == '=' || first_c == '@' && token[1] != '\0') {
-            // store/call global
+        } else if (first_c == '=') {
+            // store global/local
             const char *s = parse_name(token + 1);
             int i = vm_get_cached_str_i(vm, s);
             compiler_frame_t *last_func_frame = compiler->last_func_frame;
-            if (last_func_frame && first_c == '=') compiler_frame_push_local(last_func_frame, i);
-            code_push_instruction(code, first_c == '='? INSTR_STORE_GLOBAL: INSTR_CALL_GLOBAL);
+            if (last_func_frame) {
+                compiler_frame_push_local(last_func_frame, i);
+                code_push_instruction(code, INSTR_STORE_LOCAL);
+            } else {
+                code_push_instruction(code, INSTR_STORE_GLOBAL);
+            }
+            code_push_i(code, i);
+        } else if (first_c == '@' && token[1] != '\0') {
+            // call global/local
+            const char *s = parse_name(token + 1);
+            int i = vm_get_cached_str_i(vm, s);
+            instruction_t instruction = compiler_process_global_ref(compiler,
+                INSTR_CALL_GLOBAL, i);
+            code_push_instruction(code, instruction);
             code_push_i(code, i);
         } else if (!strcmp(token, "{") || !strcmp(token, "[")) {
             // start code block
@@ -304,10 +323,12 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_instruction(code, INSTR_LOAD_FUNC);
             code_push_i(code, i);
         } else {
-            // load global
+            // load global/local
             const char *s = parse_name(token);
             int i = vm_get_cached_str_i(vm, s);
-            code_push_instruction(code, INSTR_LOAD_GLOBAL);
+            instruction_t instruction = compiler_process_global_ref(compiler,
+                INSTR_LOAD_GLOBAL, i);
+            code_push_instruction(code, instruction);
             code_push_i(code, i);
         }
 
@@ -318,6 +339,12 @@ void compiler_compile(compiler_t *compiler, char *text) {
 
 code_t *compiler_pop_runnable_code(compiler_t *compiler) {
     if (compiler->frame == compiler->frames) {
-        return (compiler->frame--)->code;
+        code_t *code = (compiler->frame--)->code;
+        if (compiler->debug_print_code) {
+            printf("=== PARSED RUNNABLE CODE:\n");
+            vm_print_code(compiler->vm, code);
+            printf("=== END CODE\n");
+        }
+        return code;
     } else return NULL;
 }

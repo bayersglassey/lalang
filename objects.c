@@ -362,6 +362,38 @@ list_t *list_create() {
     return list;
 }
 
+list_t *list_copy(list_t *list) {
+    list_t *copy = list_create();
+    int len = list->len;
+    object_t **elems = malloc(len * sizeof *elems);
+    if (!elems) {
+        fprintf(stderr, "Failed to allocate copied list elems\n");
+        exit(1);
+    }
+    memcpy(elems, list->elems, len * sizeof *elems);
+    copy->len = list->len;
+    copy->elems = elems;
+    return copy;
+}
+
+void list_grow(list_t *list, int new_len) {
+    if (list->len >= new_len) return;
+    object_t **new_elems = realloc(list->elems, new_len * sizeof *new_elems);
+    if (!new_elems) {
+        fprintf(stderr, "Failed to grow list elems from %i to %i\n", list->len, new_len);
+        exit(1);
+    }
+    list->elems = new_elems;
+    list->len = new_len;
+}
+
+void list_extend(list_t *list, list_t *other) {
+    int old_len = list->len;
+    int new_len = old_len + other->len;
+    list_grow(list, new_len);
+    for (int i = old_len; i < new_len; i++) list->elems[i] = other->elems[i - old_len];
+}
+
 object_t *object_create_list(list_t *list) {
     object_t *obj = object_create(&list_type);
     obj->data.ptr = list? list: list_create();
@@ -394,14 +426,8 @@ void list_push(list_t *list, object_t *value) {
         exit(1);
     }
     int new_len = list->len + 1;
-    object_t **new_elems = realloc(list->elems, new_len * sizeof *new_elems);
-    if (!new_elems) {
-        fprintf(stderr, "Failed to allocate list elems\n");
-        exit(1);
-    }
-    new_elems[new_len - 1] = value;
-    list->elems = new_elems;
-    list->len = new_len;
+    list_grow(list, new_len);
+    list->elems[new_len - 1] = value;
 }
 
 object_t *list_pop(list_t *list) {
@@ -446,14 +472,22 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
     list_t *list = self->data.ptr;
     if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, list->len));
+    } else if (!strcmp(name, "copy")) {
+        vm_push(vm, object_create_list(list_copy(list)));
+    } else if (!strcmp(name, "extend")) {
+        object_t *other = vm_pop(vm);
+        if (other->type != &list_type) {
+            // TODO: implement iterators...
+            fprintf(stderr, "Attempted to extend a list with '%s' object\n", other->type->name);
+            exit(1);
+        }
+        list_extend(list, other->data.ptr);
     } else if (!strcmp(name, "get")) {
-        object_t *i_obj = vm_pop(vm);
-        int i = object_to_int(i_obj);
+        int i = object_to_int(vm_pop(vm));
         vm_push(vm, list_get(list, i));
     } else if (!strcmp(name, "set")) {
-        object_t *i_obj = vm_pop(vm);
+        int i = object_to_int(vm_pop(vm));
         object_t *value = vm_pop(vm);
-        int i = object_to_int(i_obj);
         list_set(list, i, value);
     } else if (!strcmp(name, "pop")) {
         vm_push(vm, list_pop(list));
@@ -483,6 +517,20 @@ dict_t *dict_create() {
         exit(1);
     }
     return dict;
+}
+
+dict_t *dict_copy(dict_t *dict) {
+    dict_t *copy = dict_create();
+    int len = dict->len;
+    dict_item_t *items = malloc(len * sizeof *items);
+    if (!items) {
+        fprintf(stderr, "Failed to allocate copied dict items\n");
+        exit(1);
+    }
+    memcpy(items, dict->items, len * sizeof *items);
+    copy->len = dict->len;
+    copy->items = items;
+    return copy;
 }
 
 object_t *object_create_dict(dict_t *dict) {
@@ -525,6 +573,13 @@ void dict_set(dict_t *dict, const char *name, object_t *value) {
     }
 }
 
+void dict_update(dict_t *dict, dict_t *other) {
+    for (int i = 0; i < other->len; i++) {
+        dict_item_t *item = &other->items[i];
+        dict_set(dict, item->name, item->value);
+    }
+}
+
 void dict_print(object_t *self) {
     dict_t *dict = self->data.ptr;
     putc('{', stdout);
@@ -564,6 +619,15 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
     dict_t *dict = self->data.ptr;
     if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, dict->len));
+    } else if (!strcmp(name, "copy")) {
+        vm_push(vm, object_create_dict(dict_copy(dict)));
+    } else if (!strcmp(name, "update")) {
+        object_t *other_obj = vm_pop(vm);
+        if (other_obj->type != &dict_type) {
+            fprintf(stderr, "Can't update dict with '%s' object\n", other_obj->type->name);
+            exit(1);
+        }
+        dict_update(dict, other_obj->data.ptr);
     } else if (
         !strcmp(name, "get_key") ||
         !strcmp(name, "get_value") ||
@@ -578,8 +642,8 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
         if (name[4] == 'k') vm_push(vm, vm_get_or_create_str(vm, dict->items[i].name));
         else if (name[4] == 'v') vm_push(vm, dict->items[i].value);
         else {
-            vm_push(vm, vm_get_or_create_str(vm, dict->items[i].name));
             vm_push(vm, dict->items[i].value);
+            vm_push(vm, vm_get_or_create_str(vm, dict->items[i].name));
         }
     } else if (!strcmp(name, "has")) {
         const char *name = object_to_str(vm_pop(vm));
@@ -678,6 +742,9 @@ bool func_getter(object_t *self, const char *name, vm_t *vm) {
         }
     } else if (!strcmp(name, "args")) {
         vm_push(vm, object_create_list(func->args));
+    } else if (!strcmp(name, "print_code")) {
+        if (func->is_c_code) printf("Can't print code of built-in function!\n");
+        else vm_print_code(vm, func->u.code);
     } else return false;
     return true;
 }
@@ -728,6 +795,8 @@ bool cls_type_getter(object_t *self, const char *name, vm_t *vm) {
         vm_push(vm, obj);
         object_t *init_obj = dict_get(cls->getters, "__init__");
         if (init_obj) object_getter(init_obj, "@", vm);
+    } else if (!strcmp(name, "__dict__")) {
+        vm_push(vm, object_create_dict(cls->class_attrs));
     } else if (!strcmp(name, "__getters__")) {
         vm_push(vm, object_create_dict(cls->getters));
     } else if (!strcmp(name, "__setters__")) {

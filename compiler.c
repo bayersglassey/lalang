@@ -99,7 +99,8 @@ static const char *parse_string_literal(const char *token, int token_len) {
     char c;
     while ((c = *s0++) != '"') {
         if (c == '\\') {
-            *s1++ = *s0++;
+            char c = *s0++;
+            *s1++ = c == 'n'? '\n': c;
         } else *s1++ = c;
     }
     *s1 = '\0';
@@ -172,7 +173,9 @@ void compiler_compile(compiler_t *compiler, char *text) {
 
         char first_c = token[0];
         int op;
-        if (first_c >= '0' && first_c <= '9') {
+        if (!strcmp(token, ">>>") || !strcmp(token, "...")) {
+            // just ignore these, so we can copy-paste from/to the REPL!
+        } else if (first_c >= '0' && first_c <= '9') {
             // int literal
             int i = first_c - '0';
             for (int j = 1; j < token_len; j++) {

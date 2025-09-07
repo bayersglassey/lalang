@@ -18,6 +18,7 @@ typedef struct dict dict_t;
 typedef union bytecode bytecode_t;
 typedef struct code code_t;
 typedef struct func func_t;
+typedef struct cls cls_t;
 typedef struct vm vm_t;
 typedef struct compiler_frame compiler_frame_t;
 typedef struct compiler compiler_t;
@@ -276,6 +277,27 @@ object_t *object_create_func(const char *name, code_t *code, list_t *args);
 extern type_t func_type;
 
 
+/********************
+* CLASS & INSTANCE
+********************/
+
+struct cls {
+    vm_t *vm;
+
+    dict_t *class_attrs;
+
+    // similar to Python's classmethods
+    dict_t *class_getters;
+    dict_t *class_setters;
+
+    // similar to Python's methods/properties
+    dict_t *getters;
+    dict_t *setters;
+};
+
+object_t *object_create_cls(const char *name, vm_t *vm);
+
+
 /****************
 * VM
 ****************/
@@ -295,7 +317,7 @@ struct vm {
     dict_t *globals;
 
     bool debug_print_stack;
-    bool debug_print_instructions;
+    bool debug_print_eval;
 };
 
 int vm_get_size(vm_t *vm);

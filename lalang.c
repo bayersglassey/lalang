@@ -25,7 +25,7 @@ int main(int n_args, char **args) {
     compiler->debug_print_tokens = getenv_bool("PRINT_TOKENS", false);
     bool debug_print_code = getenv_bool("PRINT_CODE", false);
     vm->debug_print_stack = getenv_bool("PRINT_STACK", false);
-    vm->debug_print_instructions = getenv_bool("PRINT_INSTRUCTIONS", false);
+    vm->debug_print_eval = getenv_bool("PRINT_EVAL", false);
 
     char *line = NULL;
     size_t line_size = 0;

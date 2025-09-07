@@ -23,7 +23,7 @@ void type_print(object_t *self) {
 
 cmp_result_t type_cmp(object_t *self, object_t *other) {
     if (other->type != &type_type) return CMP_NE;
-    return self->data.ptr == other->data.ptr;
+    else return self->data.ptr == other->data.ptr? CMP_EQ: CMP_NE;
 }
 
 bool type_getter(object_t *self, const char *name, vm_t *vm) {
@@ -364,6 +364,10 @@ object_t *list_get(list_t *list, int i) {
 }
 
 void list_set(list_t *list, int i, object_t *value) {
+    if (!value) {
+        fprintf(stderr, "Attempting to store NULL at index %i of a list\n", i);
+        exit(1);
+    }
     if (i < 0 || i >= list->len) {
         fprintf(stderr, "List access out of bounds: %i\n", i);
         exit(1);
@@ -372,6 +376,10 @@ void list_set(list_t *list, int i, object_t *value) {
 }
 
 void list_push(list_t *list, object_t *value) {
+    if (!value) {
+        fprintf(stderr, "Attempting to push NULL onto a list\n");
+        exit(1);
+    }
     int new_len = list->len + 1;
     object_t **new_elems = realloc(list->elems, new_len * sizeof *new_elems);
     if (!new_elems) {
@@ -484,6 +492,10 @@ object_t *dict_get(dict_t *dict, const char *name) {
 }
 
 void dict_set(dict_t *dict, const char *name, object_t *value) {
+    if (!value) {
+        fprintf(stderr, "Attempting to store NULL in key '%s' of a dict\n", name);
+        exit(1);
+    }
     dict_item_t *item = dict_get_item(dict, name);
     if (item) item->value = value;
     else {
@@ -539,14 +551,23 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
     dict_t *dict = self->data.ptr;
     if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, dict->len));
-    } else if (!strcmp(name, "get_i")) {
-        // hacky method, but useful for iteration
+    } else if (
+        !strcmp(name, "get_key") ||
+        !strcmp(name, "get_value") ||
+        !strcmp(name, "get_item")
+    ) {
+        // hacky methods, but useful for iteration
         int i = object_to_int(vm_pop(vm));
         if (i < 0 || i >= dict->len) {
             fprintf(stderr, "Index %i out of bounds for dict of size %i\n", i, dict->len);
             exit(1);
         }
-        vm_push(vm, dict->items[i].value);
+        if (name[4] == 'k') vm_push(vm, vm_get_or_create_str(vm, dict->items[i].name));
+        else if (name[4] == 'v') vm_push(vm, dict->items[i].value);
+        else {
+            vm_push(vm, vm_get_or_create_str(vm, dict->items[i].name));
+            vm_push(vm, dict->items[i].value);
+        }
     } else if (!strcmp(name, "has")) {
         const char *name = object_to_str(vm_pop(vm));
         object_t *obj = dict_get(dict, name);
@@ -653,3 +674,145 @@ type_t func_type = {
     .print = func_print,
     .getter = func_getter,
 };
+
+
+/********************
+* CLASS & INSTANCE
+********************/
+
+void cls_print(object_t *self) {
+    cls_t *cls = self->type->data;
+    vm_t *vm = cls->vm;
+    object_t *print_obj = dict_get(cls->getters, "__print__");
+    if (print_obj) {
+        vm_push(vm, self);
+        object_getter(print_obj, "@", vm);
+    } else printf("<'%s' object at %p>", self->type->name, self);
+}
+
+bool cls_type_getter(object_t *self, const char *name, vm_t *vm) {
+    // NOTE: self is a class type
+    type_t *type = self->data.ptr;
+    cls_t *cls = type->data;
+    if (!strcmp(name, "@")) {
+        // instantiate a class
+        object_t *obj = object_create(type);
+        obj->data.ptr = dict_create(); // instance attrs, i.e. __dict__
+        vm_push(vm, obj);
+        object_t *init_obj = dict_get(cls->getters, "__init__");
+        if (init_obj) object_getter(init_obj, "@", vm);
+    } else if (!strcmp(name, "__getters__")) {
+        vm_push(vm, object_create_dict(cls->getters));
+    } else if (!strcmp(name, "__setters__")) {
+        vm_push(vm, object_create_dict(cls->setters));
+    } else if (!strcmp(name, "__class_getters__")) {
+        vm_push(vm, object_create_dict(cls->class_getters));
+    } else if (!strcmp(name, "__class_setters__")) {
+        vm_push(vm, object_create_dict(cls->class_setters));
+    } else {
+        // lookup name in class attrs
+        object_t *obj = dict_get(cls->class_attrs, name);
+        if (obj) vm_push(vm, obj);
+        else {
+            // lookup name in class getters
+            object_t *getter_obj = dict_get(cls->class_getters, name);
+            if (getter_obj) {
+                vm_push(vm, self);
+                object_getter(getter_obj, "@", vm);
+            } else return false;
+        }
+    }
+    return true;
+}
+
+bool cls_type_setter(object_t *self, const char *name, vm_t *vm) {
+    // NOTE: self is a class type
+    type_t *type = self->data.ptr;
+    cls_t *cls = type->data;
+
+    object_t *setter_obj = dict_get(cls->class_setters, name);
+    if (setter_obj) {
+        // lookup name in class setters
+        vm_push(vm, self);
+        object_getter(setter_obj, "@", vm);
+    } else {
+        // update class attrs
+        object_t *obj = vm_pop(vm);
+        dict_set(cls->class_attrs, name, obj);
+    }
+    return true;
+}
+
+bool cls_getter(object_t *self, const char *name, vm_t *vm) {
+    // NOTE: self is a class instance
+    type_t *type = self->type;
+    cls_t *cls = type->data;
+    if (!strcmp(name, "__dict__")) {
+        vm_push(vm, self->data.ptr);
+    } else {
+        // lookup name in instance attrs
+        object_t *obj = dict_get(self->data.ptr, name);
+        if (obj) vm_push(vm, obj);
+        else {
+            // lookup name in instance getters
+            object_t *getter_obj = dict_get(cls->getters, name);
+            if (getter_obj) {
+                vm_push(vm, self);
+                object_getter(getter_obj, "@", vm);
+            } else {
+                // lookup name in class attrs
+                object_t *obj = dict_get(cls->class_attrs, name);
+                if (obj) vm_push(vm, obj);
+                else return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool cls_setter(object_t *self, const char *name, vm_t *vm) {
+    // NOTE: self is a class instance
+    type_t *type = self->type;
+    cls_t *cls = type->data;
+
+    object_t *setter_obj = dict_get(cls->setters, name);
+    if (setter_obj) {
+        // lookup name in instance setters
+        vm_push(vm, self);
+        object_getter(setter_obj, "@", vm);
+    } else {
+        // update instance attrs
+        object_t *obj = vm_pop(vm);
+        dict_set(self->data.ptr, name, obj);
+    }
+    return true;
+}
+
+object_t *object_create_cls(const char *name, vm_t *vm) {
+    cls_t *cls = calloc(1, sizeof *cls);
+    if (!cls) {
+        fprintf(stderr, "Failed to allocate class '%s'\n", name);
+        exit(1);
+    }
+    cls->vm = vm;
+    cls->class_attrs = dict_create();
+    cls->class_getters = dict_create();
+    cls->class_setters = dict_create();
+    cls->getters = dict_create();
+    cls->setters = dict_create();
+
+    type_t *type = calloc(1, sizeof *type);
+    if (!type) {
+        fprintf(stderr, "Failed to allocate class type '%s'\n", name);
+        exit(1);
+    }
+    type->name = name;
+    type->data = cls;
+    type->print = cls_print;
+    type->type_getter = cls_type_getter;
+    type->type_setter = cls_type_setter;
+    type->getter = cls_getter;
+    type->setter = cls_setter;
+
+    return object_create_type(type);
+}

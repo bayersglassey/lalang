@@ -113,6 +113,11 @@ void builtin_error(vm_t *vm) {
     exit(1);
 }
 
+void builtin_class(vm_t *vm) {
+    const char *name = object_to_str(vm_pop(vm));
+    vm_push(vm, object_create_cls(name, vm));
+}
+
 
 /****************
 * VM
@@ -251,6 +256,7 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "print_stack", &vm_print_stack);
     vm_add_builtin(vm, "include", &builtin_include);
     vm_add_builtin(vm, "error", &builtin_error);
+    vm_add_builtin(vm, "class", &builtin_class);
 
     // initialize int cache
     for (int i = VM_MIN_CACHED_INT; i <= VM_MAX_CACHED_INT; i++) {
@@ -314,7 +320,7 @@ void vm_print_code(vm_t *vm, code_t *code) {
 void vm_eval(vm_t *vm, code_t *code) {
     for (int i = 0; i < code->len; i++) {
 
-        if (vm->debug_print_instructions) {
+        if (vm->debug_print_eval) {
             int j = i;
             vm_print_instruction(vm, code, &j);
         }

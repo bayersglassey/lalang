@@ -1,0 +1,55 @@
+
+"iter" @class =iter
+{
+    =self =data
+    data self =.data
+    0 self =.i
+    data @typeof =T
+    null self =.len
+    T int == {
+        data self =.len
+        { self .i } self =.get
+    } @if
+    T list == {
+        data .len self =.len
+        { self .i self .data .get } self =.get
+    } @if
+    T dict == {
+        data .len self =.len
+        { self .i self .data .get_key } self =.get
+    } @if
+    self .len null == {
+        "Tried to iterate over '" .write T .name .write "' object\n" .write
+        "Can't iterate" @error
+    } @if
+    self
+} "__init__" iter .__getters__ .set
+{
+    =self
+    self .i self .len >=
+    { false }
+    {
+        self .get @
+        self .i 1 + self =.i
+        true
+    }
+    @ifelse
+} "__next__" iter .__getters__ .set
+
+
+{
+    @iter =it
+    =body
+    { it .__next__ }
+    body @while
+} =for
+
+
+"Iterating over an int:\n" .write
+print 3 @for
+
+"Iterating over a list:\n" .write
+print "a" "b" "c" 3 @list @for
+
+"Iterating over a dict:\n" .write
+print "x" 10 "y" 20 2 @dict @for

@@ -1,9 +1,11 @@
 
 [X] functions
 [X] conditionals
-[ ] custom classes
+[X] custom classes
 [ ] iterators
 [ ] local variables
 [ ] unit tests
 [X] modules
 [ ] C extensions
+[ ] break, continue, return?..
+[ ] use from Python

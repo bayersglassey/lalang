@@ -64,9 +64,13 @@ enum instruction {
     INSTR_LOAD_INT,
     INSTR_LOAD_STR,
     INSTR_LOAD_FUNC,
+    // NOTE: the order of the GLOBAL and LOCAL instructions is important!
     INSTR_LOAD_GLOBAL,
     INSTR_STORE_GLOBAL,
     INSTR_CALL_GLOBAL,
+    INSTR_LOAD_LOCAL,
+    INSTR_STORE_LOCAL,
+    INSTR_CALL_LOCAL,
     INSTR_GETTER,
     INSTR_SETTER,
 
@@ -97,6 +101,11 @@ enum instruction {
     N_INSTRS
 };
 
+#define FIRST_GLOBAL_INSTR INSTR_LOAD_GLOBAL
+#define LAST_GLOBAL_INSTR INSTR_CALL_GLOBAL
+#define FIRST_LOCAL_INSTR INSTR_LOAD_LOCAL
+#define LAST_LOCAL_INSTR INSTR_CALL_LOCAL
+#define N_GLOBAL_INSTRS (LAST_GLOBAL_INSTR - FIRST_GLOBAL_INSTR + 1)
 #define FIRST_OP_INSTR INSTR_NEG
 #define FIRST_INT_OP (INSTR_NEG - FIRST_OP_INSTR)
 #define LAST_INT_OP (INSTR_MOD - FIRST_OP_INSTR)
@@ -109,17 +118,20 @@ enum instruction {
 extern const char *instruction_names[N_INSTRS];
 extern const char *operator_names[N_OPS];
 
+int instruction_args(instruction_t instruction);
+
 union bytecode {
     instruction_t instruction;
     int i;
 };
 
 struct code {
+    bool is_func; // are we a function [...] or a code block {...}?
     int len;
     bytecode_t *bytecodes;
 };
 
-code_t *code_create();
+code_t *code_create(bool is_func);
 code_t *code_push_instruction(code_t *code, instruction_t instruction);
 code_t *code_push_i(code_t *code, int i);
 
@@ -349,12 +361,15 @@ void vm_eval(vm_t *vm, code_t *code);
 
 struct compiler_frame {
     code_t *code;
+    int n_locals;
+    int *locals; // indexes into vm->str_cache indicating local variable names
 };
 
 struct compiler {
     vm_t *vm;
     compiler_frame_t frames[COMPILER_STACK_SIZE];
     compiler_frame_t *frame;
+    compiler_frame_t *last_func_frame;
 
     bool debug_print_tokens;
 };

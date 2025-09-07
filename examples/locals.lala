@@ -1,11 +1,11 @@
 
-{
-    ='n
+[
+    =n
     n 1 <=
     { 1 }
-    { n ( ( n 1 - ) @factorial ) * }
+    { n 1 - @factorial n * }
     @ifelse
-} =factorial
+] =factorial
 
 1 @factorial @print # 1
 2 @factorial @print # 2

@@ -1,6 +1,6 @@
 
 "iter" @class =iter
-{
+[
     =self =data
     data self =.data
     0 self =.i
@@ -8,41 +8,41 @@
     null self =.len
     T int == {
         data self =.len
-        { self .i } self =.get
+        { .i } self =.get
     } @if
     T list == T str == | {
         data .len self =.len
-        { self .i self .data .get } self =.get
+        [ =self self .i self .data .get ] self =.get
     } @if
     T dict == {
         data .len self =.len
-        { self .i self .data .get_key } self =.get
+        [ =self self .i self .data .get_key ] self =.get
     } @if
     self .len null == {
         "Tried to iterate over '" .write T .name .write "' object\n" .write
         "Can't iterate" @error
     } @if
     self
-} "__init__" iter .__getters__ .set
-{
+] "__init__" iter .__getters__ .set
+[
     =self
     self .i self .len >=
     { false }
     {
-        self .get @
+        self self .get @
         self .i 1 + self =.i
         true
     }
     @ifelse
-} "__next__" iter .__getters__ .set
+] "__next__" iter .__getters__ .set
 
 
-{
+[
     @iter =it
     =body
     { it .__next__ }
     body @while
-} =for
+] =for
 
 
 "Iterating over an int:\n" .write

@@ -101,7 +101,7 @@ void builtin_include(vm_t *vm) {
     compiler_compile(compiler, text);
     code_t *code = compiler_pop_runnable_code(compiler);
     if (!code) {
-        fprintf(stderr, "Mismatched '{'\n");
+        fprintf(stderr, "Code included from '%s' had an unterminated block\n", filename);
         exit(1);
     }
     vm_eval(vm, code);
@@ -316,8 +316,7 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
         printf(" %i", code->bytecodes[++i].i);
     } else if (
         instruction == INSTR_GETTER || instruction == INSTR_SETTER ||
-        instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_STORE_GLOBAL ||
-        instruction == INSTR_CALL_GLOBAL
+        instruction >= FIRST_GLOBAL_INSTR || instruction <= LAST_LOCAL_INSTR
     ) {
         int j = code->bytecodes[++i].i;
         printf(" %s", vm->str_cache->items[j].name);
@@ -355,24 +354,36 @@ void vm_eval(vm_t *vm, code_t *code) {
             object_t *obj = vm_pop(vm);
             if (instruction == INSTR_GETTER) object_getter(obj, name, vm);
             if (instruction == INSTR_SETTER) object_setter(obj, name, vm);
-        } else if (instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_CALL_GLOBAL) {
+        } else if (
+            instruction == INSTR_LOAD_GLOBAL || instruction == INSTR_CALL_GLOBAL ||
+            instruction == INSTR_LOAD_LOCAL || instruction == INSTR_CALL_LOCAL
+        ) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;
-            object_t *obj = dict_get(vm->globals, name);
-            if (!obj) {
-                fprintf(stderr, "Global not found: %s\n", name);
+            object_t *obj;
+            if (instruction == INSTR_LOAD_LOCAL || instruction == INSTR_CALL_LOCAL) {
+                fprintf(stderr, "TODO\n");
                 exit(1);
+            } else {
+                obj = dict_get(vm->globals, name);
+                if (!obj) {
+                    fprintf(stderr, "Global not found: %s\n", name);
+                    exit(1);
+                }
             }
-            if (instruction == INSTR_CALL_GLOBAL) {
+            if (instruction == INSTR_CALL_GLOBAL || instruction == INSTR_CALL_LOCAL) {
                 object_getter(obj, "@", vm);
             } else {
                 vm_push(vm, obj);
             }
-        } else if (instruction == INSTR_STORE_GLOBAL) {
+        } else if (instruction == INSTR_STORE_GLOBAL || instruction == INSTR_STORE_LOCAL) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;
             object_t *obj = vm_pop(vm);
-            dict_set(vm->globals, name, obj);
+            if (instruction == INSTR_STORE_LOCAL) {
+                fprintf(stderr, "TODO\n");
+                exit(1);
+            } else dict_set(vm->globals, name, obj);
         } else {
             // operator
             int op = instruction - FIRST_OP_INSTR;

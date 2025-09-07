@@ -21,9 +21,12 @@ compiler_t *compiler_create(vm_t *vm) {
     return compiler;
 }
 
-static compiler_frame_t *compiler_push_frame(compiler_t *compiler) {
+static compiler_frame_t *compiler_push_frame(compiler_t *compiler, bool is_func) {
     compiler_frame_t *frame = ++compiler->frame;
-    frame->code = code_create();
+    frame->code = code_create(is_func);
+    frame->n_locals = 0;
+    frame->locals = NULL;
+    if (is_func) compiler->last_func_frame = frame;
     return frame;
 }
 
@@ -32,7 +35,37 @@ static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
         fprintf(stderr, "Tried to pop from an empty frame stack\n");
         exit(1);
     }
-    return compiler->frame--;
+    compiler_frame_t *popped_frame = compiler->frame--;
+    if (popped_frame == compiler->last_func_frame) {
+        // update our code, so that local variable references use the LOCAL
+        // variants of the GLOBAL bytecode instructions we compiled
+        code_t *code = popped_frame->code;
+        for (int i = 0; i < code->len; i++) {
+            instruction_t instruction = code->bytecodes[i].instruction;
+            if (
+                instruction >= FIRST_GLOBAL_INSTR &&
+                instruction <= LAST_GLOBAL_INSTR
+            ) {
+                for (int j = 0; j < popped_frame->n_locals; j++) {
+                    if (popped_frame->locals[j] != code->bytecodes[i + 1].i) continue;
+                    code->bytecodes[i].instruction = instruction + N_GLOBAL_INSTRS; // convert to LOCAL
+                    break;
+                }
+            }
+            i += instruction_args(instruction);
+        }
+
+        // find the previous func frame, if any
+        compiler->last_func_frame = NULL;
+        for (compiler_frame_t *frame = compiler->frame; frame >= compiler->frames; frame--) {
+            if (frame->code->is_func) {
+                compiler->last_func_frame = frame;
+                break;
+            }
+        }
+    }
+    free(popped_frame->locals); // currently our only use of free in this codebase... hooray?
+    return popped_frame;
 }
 
 static char *get_token(char *text, int *token_len_ptr) {
@@ -147,10 +180,27 @@ int parse_operator(const char *token) {
     return -1;
 }
 
+static void compiler_frame_push_local(compiler_frame_t *frame, int cached_str_i) {
+    // mark the indicated variable name as being local to frame->code
+    // NOTE: if we arrive here, frame->code->is_func must be true
+    for (int i = 0; i < frame->n_locals; i++) {
+        if (frame->locals[i] == cached_str_i) return; // already there
+    }
+    int new_n_locals = frame->n_locals + 1;
+    int *new_locals = realloc(frame->locals, new_n_locals * sizeof *new_locals);
+    if (!new_locals) {
+        fprintf(stderr, "Failed to allocate compiler frame locals\n");
+        exit(1);
+    }
+    new_locals[new_n_locals - 1] = cached_str_i;
+    frame->locals = new_locals;
+    frame->n_locals = new_n_locals;
+}
+
 void compiler_compile(compiler_t *compiler, char *text) {
     // Get current frame, or add one
     compiler_frame_t *frame = compiler->frame < compiler->frames?
-        compiler_push_frame(compiler): compiler->frame;
+        compiler_push_frame(compiler, false): compiler->frame;
     code_t *code = frame->code;
 
     vm_t *vm = compiler->vm;
@@ -204,7 +254,8 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_i(code, i);
         } else if ((op = parse_operator(token)) >= 0) {
             // operator
-            // NOTE: need to check for this before the check for STORE_GLOBAL
+            // NOTE: need to check for this before the check for '=' followed
+            // by a name
             code_push_instruction(code, FIRST_OP_INSTR + op);
         } else if (first_c == '.') {
             // getter
@@ -222,16 +273,27 @@ void compiler_compile(compiler_t *compiler, char *text) {
             // store/call global
             const char *s = parse_name(token + 1);
             int i = vm_get_cached_str_i(vm, s);
+            compiler_frame_t *last_func_frame = compiler->last_func_frame;
+            if (last_func_frame && first_c == '=') compiler_frame_push_local(last_func_frame, i);
             code_push_instruction(code, first_c == '='? INSTR_STORE_GLOBAL: INSTR_CALL_GLOBAL);
             code_push_i(code, i);
-        } else if (!strcmp(token, "{")) {
+        } else if (!strcmp(token, "{") || !strcmp(token, "[")) {
             // start code block
-            frame = compiler_push_frame(compiler);
+            bool is_func = token[0] == '[';
+            frame = compiler_push_frame(compiler, is_func);
             code = frame->code;
-        } else if (!strcmp(token, "}")) {
+        } else if (!strcmp(token, "}") || !strcmp(token, "]")) {
             // end code block
             if (compiler->frame <= compiler->frames) {
-                fprintf(stderr, "Mismatched '}'\n");
+                fprintf(stderr, "Unterminated block\n");
+                exit(1);
+            }
+            bool was_func = compiler->frame->code->is_func;
+            bool is_func = token[0] == ']';
+            if (was_func != is_func) {
+                fprintf(stderr, "Expected '%c', got '%c'\n",
+                    was_func? ']': '}',
+                    is_func? ']': '}');
                 exit(1);
             }
             vm_push_code(vm, code);

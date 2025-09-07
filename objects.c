@@ -660,7 +660,8 @@ void func_print(object_t *self) {
     func_t *func = self->data.ptr;
     const char *name = func->name? func->name: "(no name)";
     printf("<%s %s at %p>",
-        func->is_c_code? "built-in function": "function",
+        func->is_c_code? "built-in function":
+            func->u.code->is_func? "function": "code block",
         name, self);
 }
 

@@ -348,7 +348,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
 code_t *compiler_pop_runnable_code(compiler_t *compiler) {
     if (compiler->frame == compiler->frames) {
         code_t *code = (compiler->frame--)->code;
-        if (compiler->debug_print_code) {
+        if (compiler->debug_print_code && code->len) {
             printf("=== PARSED RUNNABLE CODE:\n");
             vm_print_code(compiler->vm, code);
             printf("=== END CODE\n");

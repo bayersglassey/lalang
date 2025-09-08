@@ -16,3 +16,61 @@
         next true
     } { false } @ifelse
 ] "__next__" enumerate .__getters__ .set
+
+
+# ( 0 3 @range ) { 10 * } @map @list -> [0, 10, 20]
+"map" @class =map
+[
+    =self
+    self =.func
+    @iter self =.it
+    self
+] "__init__" map .__getters__ .set
+{ } "__iter__" map .__getters__ .set
+[
+    =self
+    self .it @next {
+        self .func @
+        true
+    } { false } @ifelse
+] "__next__" map .__getters__ .set
+
+
+# ( 0 6 @range ) { 2 % 0 == } @filter @list -> [0, 2, 4]
+"filter" @class =filter
+[
+    =self
+    self =.func
+    @iter self =.it
+    self
+] "__init__" filter .__getters__ .set
+{ } "__iter__" filter .__getters__ .set
+[
+    =self
+
+    # Recursive implementation looks so simple!.. but eats stack:
+    # self .it @next {
+    #     =x
+    #     x self .func @ { x true } { self @next } @ifelse
+    # } { false } @ifelse
+
+    # Implementation with a while-loop:
+    {
+        self .it @next {
+            # we got a potential next value
+            =x
+            x self .func @ {
+                # the value passed the filter
+                x true # return next value
+                false # break out of the while-loop
+            } {
+                # the value did not pass the filter
+                true # continue the while-loop
+            } @ifelse
+        } {
+            # end of iteration
+            false # return end-of-iteration
+            false # break out of the while-loop
+        } @ifelse
+    } { } @while
+] "__next__" filter .__getters__ .set

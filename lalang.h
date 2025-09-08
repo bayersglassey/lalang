@@ -244,6 +244,7 @@ list_t *list_copy(list_t *list);
 void list_grow(list_t *list, int new_len);
 void list_extend(list_t *list, list_t *other);
 void list_sort(list_t *list, vm_t *vm);
+void list_reverse(list_t *list);
 object_t *object_create_list(list_t *list);
 object_t *list_get(list_t *list, int i);
 void list_set(list_t *list, int i, object_t *value);

@@ -4,10 +4,10 @@
 [X] custom classes
 [X] iterators
 [X] fix operator call order: `x y +` should be equivalent to `y x .+` (as it were)
-[ ] standard library (stdlib.lala)
+[X] standard library (stdlib.lala)
     [X] enumerate
     [X] sorted (first add list .sort, then use it for this)
-    [ ] reversed (first add list .reverse, then use it for this)
+    [X] reversed (first add list .reverse, then use it for this)
     [X] map
     [X] filter
     ...can we add some kind of fancy way to do comprehensions?..
@@ -16,7 +16,7 @@
 [ ] we have func->args, how about func->kwargs?.. i.e. stored locals?..
     we could probably even handle this in the compiler, if we detect references
     within a func (i.e. is_func=true) to variables belonging to a parent func
-[ ] parentheses, i.e. stack assertions
+[X] parentheses, i.e. stack assertions
 [X] single-character string cache, "abc" .get should be "a", etc
 [ ] unit tests
 [X] modules
@@ -29,3 +29,4 @@
 [ ] bit shift operators
 [ ] add builtins: readfile, readline
 [ ] string methods: split, join
+[ ] add a README

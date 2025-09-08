@@ -421,6 +421,16 @@ void list_sort(list_t *list, vm_t *vm) {
     qsort(list->elems, list->len, sizeof *list->elems, list_sort_compare);
 }
 
+void list_reverse(list_t *list) {
+    int until = list->len / 2;
+    for (int i = 0; i < until; i++) {
+        int j = list->len - 1 - i;
+        object_t *temp = list->elems[i];
+        list->elems[i] = list->elems[j];
+        list->elems[j] = temp;
+    }
+}
+
 object_t *object_create_list(list_t *list) {
     object_t *obj = object_create(&list_type);
     obj->data.ptr = list? list: list_create();
@@ -539,6 +549,8 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
         list_push(list, value);
     } else if (!strcmp(name, "sort")) {
         list_sort(list, vm);
+    } else if (!strcmp(name, "reverse")) {
+        list_reverse(list);
     } else if (!strcmp(name, "unbuild")) {
         // the inverse of list .build
         for (int i = 0; i < list->len; i++) vm_push(vm, list->elems[i]);

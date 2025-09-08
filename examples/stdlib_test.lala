@@ -6,3 +6,5 @@
 ( 0 6 @range ) { 2 % 0 == } @filter @list @print # [0, 2, 4]
 
 "zabcba" @sorted @print # ["a", "a", "b", "b", "c", "z"]
+
+"abc" @reversed @print # ["c", "b", "a"]

@@ -77,3 +77,6 @@
 
 # "zabcba" @sorted -> ["a", "a", "b", "b", "c", "z"]
 { @list @dup .sort } =sorted
+
+# "abc" @reversed -> ["c", "b", "a"]
+{ @list @dup .reverse } =reversed

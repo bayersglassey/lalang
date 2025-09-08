@@ -45,13 +45,13 @@
 print 3 @for
 
 "Iterating over a list:\n" .write
-print "a" "b" "c" 3 @list @for
+print ( "a" "b" "c" 3 list .build ) @for
 
 "Iterating over a string:\n" .write
 print "abc" @for
 
 "Iterating over a dict:\n" .write
-print "x" 10 "y" 20 2 @dict @for
+print ( "x" 10 "y" 20 2 dict .build ) @for
 
 "Iterating over a custom iterable:\n" .write
 "CustomIterable" @class =CustomIterable

@@ -46,6 +46,46 @@ void builtin_while(vm_t *vm) {
     }
 }
 
+void builtin_iter(vm_t *vm) {
+    object_t *obj = vm_pop(vm);
+    object_getter(obj, "__iter__", vm);
+}
+
+void builtin_next(vm_t *vm) {
+    object_t *obj = vm_pop(vm);
+    object_getter(obj, "__next__", vm);
+}
+
+void builtin_for(vm_t *vm) {
+    object_t *obj_it = vm_pop(vm);
+    object_t *body_obj = vm_pop(vm);
+    object_getter(obj_it, "__iter__", vm);
+    obj_it = vm_pop(vm);
+    object_t *next_obj;
+    while (next_obj = object_next(obj_it, vm)) {
+        vm_push(vm, next_obj);
+        object_getter(body_obj, "@", vm);
+    }
+}
+
+void builtin_range(vm_t *vm) {
+    int end = object_to_int(vm_pop(vm));
+    int start = object_to_int(vm_pop(vm));
+    iterator_t *it = iterator_create(ITER_RANGE, end - start,
+        (iterator_data_t){ .range_start = start });
+    vm_push(vm, object_create_iterator(it));
+}
+
+void builtin_pair(vm_t *vm) {
+    object_t *obj2 = vm_pop(vm);
+    object_t *obj1 = vm_pop(vm);
+    list_t *list = list_create();
+    list_grow(list, 2);
+    list->elems[0] = obj1;
+    list->elems[1] = obj2;
+    vm_push(vm, object_create_list(list));
+}
+
 void builtin_globals(vm_t *vm) {
     vm_push(vm, object_create_dict(vm->globals));
 }
@@ -177,6 +217,7 @@ void vm_push(vm_t *vm, object_t *obj) {
 }
 
 int vm_get_cached_str_i(vm_t *vm, const char *s) {
+    // returns the index of a cached str object, creating it if necessary
     dict_t *dict = vm->str_cache;
     dict_item_t *item = dict_get_item(dict, s);
     if (item) {
@@ -242,6 +283,7 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "str", object_create_type(&str_type));
     dict_set(vm->globals, "list", object_create_type(&list_type));
     dict_set(vm->globals, "dict", object_create_type(&dict_type));
+    dict_set(vm->globals, "iterator", object_create_type(&iterator_type));
     dict_set(vm->globals, "func", object_create_type(&func_type));
 
     // initialize builtins (i.e. C function globals)
@@ -249,6 +291,11 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "if", &builtin_if);
     vm_add_builtin(vm, "ifelse", &builtin_ifelse);
     vm_add_builtin(vm, "while", &builtin_while);
+    vm_add_builtin(vm, "iter", &builtin_iter);
+    vm_add_builtin(vm, "next", &builtin_next);
+    vm_add_builtin(vm, "for", &builtin_for);
+    vm_add_builtin(vm, "range", &builtin_range);
+    vm_add_builtin(vm, "pair", &builtin_pair);
     vm_add_builtin(vm, "globals", &builtin_globals);
     vm_add_builtin(vm, "locals", &builtin_locals);
     vm_add_builtin(vm, "typeof", &builtin_typeof);
@@ -336,6 +383,12 @@ void vm_print_code(vm_t *vm, code_t *code) {
     for (int i = 0; i < code->len; i++) vm_print_instruction(vm, code, &i);
 }
 
+object_t *vm_iter(vm_t *vm) {
+    object_t *obj_it = vm_pop(vm);
+    object_getter(obj_it, "__iter__", vm);
+    return vm_pop(vm);
+}
+
 void vm_eval(vm_t *vm, code_t *code) {
     dict_t *prev_locals;
     if (code->is_func) {
@@ -421,7 +474,7 @@ void vm_eval(vm_t *vm, code_t *code) {
                 }
                 vm_push(vm, object_create_bool(b));
             } else {
-                const char *name = operator_names[op];
+                const char *name = operator_tokens[op];
                 object_t *obj = vm_pop(vm);
                 object_getter(obj, name, vm);
             }

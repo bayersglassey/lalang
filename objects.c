@@ -247,39 +247,46 @@ cmp_result_t int_cmp(object_t *self, object_t *other) {
 }
 
 bool int_getter(object_t *self, const char *name, vm_t *vm) {
-    int op = parse_operator(name);
-    if (op < FIRST_INT_OP || op > LAST_BOOL_OP) return false;
+    int op;
+    if (
+        op = parse_operator(name),
+        op >= FIRST_INT_OP && op <= LAST_BOOL_OP
+    ) {
+        instruction_t instruction = FIRST_OP_INSTR + op;
+        bool is_unop = instruction == INSTR_NEG || instruction == INSTR_NOT;
 
-    instruction_t instruction = FIRST_OP_INSTR + op;
-    bool is_unop = instruction == INSTR_NEG || instruction == INSTR_NOT;
+        int i, j;
+        if (is_unop) {
+            i = self->data.i;
+        } else {
+            object_t *other = vm_pop(vm);
+            i = object_to_int(other);
+            j = self->data.i;
+        }
 
-    int i, j;
-    if (is_unop) {
-        i = self->data.i;
-    } else {
-        object_t *other = vm_pop(vm);
-        i = object_to_int(other);
-        j = self->data.i;
-    }
+        switch (instruction) {
+            case INSTR_NEG: i = -i; break;
+            case INSTR_ADD: i += j; break;
+            case INSTR_SUB: i -= j; break;
+            case INSTR_MUL: i *= j; break;
+            case INSTR_DIV: i /= j; break;
+            case INSTR_MOD: i %= j; break;
+            case INSTR_NOT: i = ~i; break;
+            case INSTR_AND: i &= j; break;
+            case INSTR_OR: i |= j; break;
+            case INSTR_XOR: i ^= j; break;
+            default:
+                // should never happen...
+                fprintf(stderr, "Unknown instruction in int_getter: %i\n", instruction);
+                exit(1);
+        }
 
-    switch (instruction) {
-        case INSTR_NEG: i = -i; break;
-        case INSTR_ADD: i += j; break;
-        case INSTR_SUB: i -= j; break;
-        case INSTR_MUL: i *= j; break;
-        case INSTR_DIV: i /= j; break;
-        case INSTR_MOD: i %= j; break;
-        case INSTR_NOT: i = ~i; break;
-        case INSTR_AND: i &= j; break;
-        case INSTR_OR: i |= j; break;
-        case INSTR_XOR: i ^= j; break;
-        default:
-            // should never happen...
-            fprintf(stderr, "Unknown instruction in int_getter: %i\n", instruction);
-            exit(1);
-    }
-
-    vm_push(vm, vm_get_or_create_int(vm, i));
+        vm_push(vm, vm_get_or_create_int(vm, i));
+    } else if (!strcmp(name, "times")) {
+        iterator_t *it = iterator_create(ITER_RANGE, self->data.i,
+            (iterator_data_t){ .range_start = 0 });
+        vm_push(vm, object_create_iterator(it));
+    } else return false;
     return true;
 }
 
@@ -327,6 +334,10 @@ bool str_getter(object_t *self, const char *name, vm_t *vm) {
     } else if (!strcmp(name, "len")) {
         int len = strlen(s);
         vm_push(vm, vm_get_or_create_int(vm, len));
+    } else if (!strcmp(name, "__iter__")) {
+        iterator_t *it = iterator_create(ITER_STR, strlen(s),
+            (iterator_data_t){ .str = s });
+        vm_push(vm, object_create_iterator(it));
     } else if (!strcmp(name, "get")) {
         int i = object_to_int(vm_pop(vm));
         int len = strlen(s);
@@ -450,6 +461,18 @@ void list_print(object_t *self) {
 
 bool list_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "@")) {
+        list_t *list;
+        object_t *obj = vm_top(vm);
+        if (obj->type == &list_type) {
+            list = list_copy(obj->data.ptr);
+        } else {
+            list = list_create();
+            object_t *obj_it = vm_iter(vm);
+            object_t *next_obj;
+            while (next_obj = object_next(obj_it, vm)) list_push(list, next_obj);
+        }
+        vm_push(vm, object_create_list(list));
+    } else if (!strcmp(name, "build")) {
         int n = object_to_int(vm_pop(vm));
         if (n < 0) {
             fprintf(stderr, "Tried to build a list of negative size %i\n", n);
@@ -472,6 +495,10 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
     list_t *list = self->data.ptr;
     if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, list->len));
+    } else if (!strcmp(name, "__iter__")) {
+        iterator_t *it = iterator_create(ITER_LIST, list->len,
+            (iterator_data_t){ .list = list });
+        vm_push(vm, object_create_iterator(it));
     } else if (!strcmp(name, "copy")) {
         vm_push(vm, object_create_list(list_copy(list)));
     } else if (!strcmp(name, "extend")) {
@@ -494,6 +521,18 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
     } else if (!strcmp(name, "push")) {
         object_t *value = vm_pop(vm);
         list_push(list, value);
+    } else if (!strcmp(name, "unbuild")) {
+        // the inverse of list .build
+        for (int i = 0; i < list->len; i++) vm_push(vm, list->elems[i]);
+        vm_push(vm, vm_get_or_create_int(vm, list->len));
+    } else if (!strcmp(name, "unpair")) {
+        // the inverse of @pair
+        if (list->len != 2) {
+            fprintf(stderr, "Can't unpair list of size %i (!= 2)\n", list->len);
+            exit(1);
+        }
+        vm_push(vm, list->elems[1]);
+        vm_push(vm, list->elems[0]);
     } else return false;
     return true;
 }
@@ -594,6 +633,30 @@ void dict_print(object_t *self) {
 
 bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "@")) {
+        dict_t *dict;
+        object_t *obj = vm_top(vm);
+        if (obj->type == &dict_type) {
+            dict = dict_copy(obj->data.ptr);
+        } else {
+            dict = dict_create();
+            object_t *obj_it = vm_iter(vm);
+            object_t *next_obj;
+            while (next_obj = object_next(obj_it, vm)) {
+                if (next_obj->type != &list_type) {
+                    fprintf(stderr, "Dict constructor expected iterable of pairs, but found a '%s'\n", next_obj->type->name);
+                    exit(1);
+                }
+                list_t *pair = next_obj->data.ptr;
+                if (pair->len != 2) {
+                    fprintf(stderr, "Dict constructor expected iterable of pairs, but found a list of size %i\n", pair->len);
+                    exit(1);
+                }
+                const char *name = object_to_str(pair->elems[0]);
+                dict_set(dict, name, pair->elems[1]);
+            }
+        }
+        vm_push(vm, object_create_dict(dict));
+    } else if (!strcmp(name, "build")) {
         int n = object_to_int(vm_pop(vm));
         if (n < 0) {
             fprintf(stderr, "Tried to build a dict of negative size %i\n", n);
@@ -619,6 +682,19 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
     dict_t *dict = self->data.ptr;
     if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, dict->len));
+    } else if (
+        !strcmp(name, "__iter__") ||
+        !strcmp(name, "keys") ||
+        !strcmp(name, "values") ||
+        !strcmp(name, "items")
+    ) {
+        iterator_t *it = iterator_create(
+            name[0] == 'v'? ITER_DICT_VALUES:
+                name[0] == 'i'? ITER_DICT_ITEMS:
+                ITER_DICT_KEYS,
+            dict->len,
+            (iterator_data_t){ .dict = dict });
+        vm_push(vm, object_create_iterator(it));
     } else if (!strcmp(name, "copy")) {
         vm_push(vm, object_create_dict(dict_copy(dict)));
     } else if (!strcmp(name, "update")) {
@@ -675,6 +751,115 @@ type_t dict_type = {
     .print = dict_print,
     .type_getter = dict_type_getter,
     .getter = dict_getter,
+};
+
+
+/****************
+* ITERATOR
+****************/
+
+const char *iteration_names[N_ITERS] = {
+    "range",
+    "str",
+    "list",
+    "dict keys",
+    "dict values",
+    "dict items",
+};
+
+const char *get_iteration_name(iteration_t iteration) {
+    if (iteration < 0 || iteration >= N_ITERS) return "unknown";
+    return iteration_names[iteration];
+}
+
+iterator_t *iterator_create(iteration_t iteration, int len, iterator_data_t data) {
+    iterator_t *it = calloc(1, sizeof *it);
+    if (!it) {
+        fprintf(stderr, "Failed to allocate %s iterator\n", get_iteration_name(iteration));
+        exit(1);
+    }
+    it->iteration = iteration;
+    it->i = 0;
+    it->len = len;
+    it->data = data;
+    return it;
+}
+
+object_t *object_create_iterator(iterator_t *it) {
+    object_t *obj = object_create(&iterator_type);
+    obj->data.ptr = it;
+    return obj;
+}
+
+object_t *object_next(object_t *obj, vm_t *vm) {
+    object_getter(obj, "__next__", vm);
+    if (object_to_bool(vm_pop(vm))) {
+        return vm_pop(vm);
+    } else return NULL; // iteration finished
+}
+
+void iterator_print(object_t *self) {
+    iterator_t *it = self->data.ptr;
+    printf("<%s iterator at %p>", get_iteration_name(it->iteration), self);
+}
+
+bool iterator_getter(object_t *self, const char *name, vm_t *vm) {
+    iterator_t *it = self->data.ptr;
+    if (!strcmp(name, "__iter__")) {
+        vm_push(vm, self);
+    } else if (!strcmp(name, "__next__")) {
+        if (it->i >= it->len) vm_push(vm, &static_false);
+        else {
+            iteration_t iteration = it->iteration;
+            if (iteration == ITER_RANGE) {
+                vm_push(vm, vm_get_or_create_int(vm, it->data.range_start + it->i));
+            } else if (iteration == ITER_STR) {
+                vm_push(vm, vm_get_char_str(vm, it->data.str[it->i]));
+            } else if (iteration == ITER_LIST) {
+                list_t *list = it->data.list;
+                if (list->len != it->len) {
+                    fprintf(stderr, "List changed length from %i to %i while being iterated\n", it->len, list->len);
+                    exit(1);
+                }
+                vm_push(vm, list->elems[it->i]);
+            } else if (iteration >= FIRST_DICT_ITER && iteration <= LAST_DICT_ITER) {
+                dict_t *dict = it->data.dict;
+                if (dict->len != it->len) {
+                    fprintf(stderr, "Dict changed length from %i to %i while being iterated\n", it->len, dict->len);
+                    exit(1);
+                }
+                dict_item_t *item = &dict->items[it->i];
+                if (iteration == ITER_DICT_KEYS) {
+                    vm_push(vm, vm_get_or_create_str(vm, item->name));
+                } else if (iteration == ITER_DICT_VALUES) {
+                    vm_push(vm, item->value);
+                } else if (iteration == ITER_DICT_ITEMS) {
+                    list_t *pair = list_create();
+                    list_grow(pair, 2);
+                    pair->elems[0] = vm_get_or_create_str(vm, item->name);
+                    pair->elems[1] = item->value;
+                    vm_push(vm, object_create_list(pair));
+                } else {
+                    // we should never get here...
+                    fprintf(stderr, "Unknown dict iteration tag: %i\n", iteration);
+                    exit(1);
+                }
+            } else {
+                // we should never get here...
+                fprintf(stderr, "Unknown iteration tag: %i\n", iteration);
+                exit(1);
+            }
+            vm_push(vm, &static_true);
+            it->i++;
+        }
+    } else return false;
+    return true;
+}
+
+type_t iterator_type = {
+    .name = "iterator",
+    .print = iterator_print,
+    .getter = iterator_getter,
 };
 
 

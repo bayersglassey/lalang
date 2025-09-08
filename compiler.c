@@ -182,7 +182,7 @@ static const char *parse_name(const char *token) {
 
 int parse_operator(const char *token) {
     for (int op = 0; op < N_OPS; op++) {
-        if (!strcmp(token, operator_names[op])) return op;
+        if (!strcmp(token, operator_tokens[op])) return op;
     }
     return -1;
 }
@@ -296,6 +296,14 @@ void compiler_compile(compiler_t *compiler, char *text) {
                 INSTR_CALL_GLOBAL, i);
             code_push_instruction(code, instruction);
             code_push_i(code, i);
+        } else if (!strcmp(token, "(") || !strcmp(token, ")")) {
+            // no-ops!
+            // these can be used to indicate that a given code sequence is
+            // expected to result in a single value being pushed onto the
+            // stack.
+            // if we wanted to be really fancy, we would add bytecodes for
+            // these, and *assert* that the expected stack effect had taken
+            // place.
         } else if (!strcmp(token, "{") || !strcmp(token, "[")) {
             // start code block
             bool is_func = token[0] == '[';

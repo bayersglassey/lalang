@@ -15,6 +15,9 @@ typedef struct object object_t;
 typedef struct list list_t;
 typedef struct dict_item dict_item_t;
 typedef struct dict dict_t;
+typedef enum iteration iteration_t;
+typedef union iterator_data iterator_data_t;
+typedef struct iterator iterator_t;
 typedef union bytecode bytecode_t;
 typedef struct code code_t;
 typedef struct func func_t;
@@ -79,7 +82,7 @@ enum instruction {
     // They come at the end of the enum, so that we can define N_OPS in
     // terms of FIRST_OP_INSTR and N_INSTRS.
     // And the order of the operators must of course match that of
-    // operator_names.
+    // operator_tokens.
     INSTR_NEG,
     INSTR_ADD,
     INSTR_SUB,
@@ -116,7 +119,7 @@ enum instruction {
 #define N_OPS (N_INSTRS - FIRST_OP_INSTR)
 
 extern const char *instruction_names[N_INSTRS];
-extern const char *operator_names[N_OPS];
+extern const char *operator_tokens[N_OPS];
 
 int instruction_args(instruction_t instruction);
 
@@ -275,6 +278,48 @@ extern type_t dict_type;
 
 
 /****************
+* ITERATOR
+****************/
+
+enum iteration {
+    ITER_RANGE,
+    ITER_STR,
+    ITER_LIST,
+    // NOTE: the order of these DICT ones is important!..
+    ITER_DICT_KEYS,
+    ITER_DICT_VALUES,
+    ITER_DICT_ITEMS,
+    N_ITERS
+};
+
+#define FIRST_DICT_ITER ITER_DICT_KEYS
+#define LAST_DICT_ITER ITER_DICT_ITEMS
+
+union iterator_data {
+    int range_start;
+    list_t *list;
+    dict_t *dict;
+    const char *str;
+};
+
+struct iterator {
+    iteration_t iteration;
+    int i;
+    int len;
+    iterator_data_t data;
+};
+
+extern const char *iteration_names[N_ITERS];
+
+const char *get_iteration_name(iteration_t iteration);
+iterator_t *iterator_create(iteration_t iteration, int len, iterator_data_t data);
+object_t *object_create_iterator(iterator_t *it);
+object_t *object_next(object_t *obj, vm_t *vm);
+
+extern type_t iterator_type;
+
+
+/****************
 * FUNC
 ****************/
 
@@ -356,6 +401,7 @@ void vm_push_code(vm_t *vm, code_t *code);
 vm_t *vm_create();
 void vm_print_stack(vm_t *vm);
 void vm_print_code(vm_t *vm, code_t *code);
+object_t *vm_iter(vm_t *vm);
 void vm_eval(vm_t *vm, code_t *code);
 
 

@@ -41,7 +41,7 @@ const char *instruction_names[N_INSTRS] = {
     "CALL"
 };
 
-const char *operator_names[N_OPS] = {
+const char *operator_tokens[N_OPS] = {
     "~",
     "+",
     "-",

@@ -4,7 +4,7 @@
     =text
     text .len =len
     0 =i
-    0 @list =stack
+    0 list .build =stack
     { i len < } {
         i text .get =c
         c "\"" == {

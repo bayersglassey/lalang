@@ -2,8 +2,14 @@
 [X] functions
 [X] conditionals
 [X] custom classes
-[ ] iterators
+[X] iterators
 [ ] standard library
+    * enumerate
+    * sorted (first add list .reverse, then use it for this)
+    * reversed (first add list .sort, then use it for this)
+    * map
+    * filter
+    * ...can we add some kind of fancy way to do comprehensions?..
 [ ] cli options
 [X] locals
 [ ] we have func->args, how about func->kwargs?.. i.e. stored locals?..
@@ -17,3 +23,5 @@
     ...see extensions/nlist.c!.. need to compile it, and implement a @cimport builtin
 [ ] break, continue, return?..
 [ ] use from Python
+[ ] support negative list indexes
+[ ] list slices (ITER_LIST_SLICE, or just reuse ITER_LIST and add more info to it)

@@ -21,7 +21,7 @@ void type_print(object_t *self) {
     printf("<type '%s'>", type->name);
 }
 
-cmp_result_t type_cmp(object_t *self, object_t *other) {
+cmp_result_t type_cmp(object_t *self, object_t *other, vm_t *vm) {
     if (other->type != &type_type) return CMP_NE;
     else return self->data.ptr == other->data.ptr? CMP_EQ: CMP_NE;
 }
@@ -97,9 +97,9 @@ const char *object_to_str(object_t *self) {
     }
 }
 
-cmp_result_t object_cmp(object_t *self, object_t *other) {
+cmp_result_t object_cmp(object_t *self, object_t *other, vm_t *vm) {
     type_t *type = self->type;
-    if (type->cmp) return type->cmp(self, other);
+    if (type->cmp) return type->cmp(self, other, vm);
     else return self == other? CMP_EQ: CMP_NE;
 }
 
@@ -238,9 +238,9 @@ int int_to_int(object_t *self) {
     return self->data.i;
 }
 
-cmp_result_t int_cmp(object_t *self, object_t *other) {
-    int i = object_to_int(other);
-    int j = self->data.i;
+cmp_result_t int_cmp(object_t *self, object_t *other, vm_t *vm) {
+    int i = self->data.i;
+    int j = object_to_int(other);
     if (i < j) return CMP_LT;
     else if (i > j) return CMP_GT;
     else return CMP_EQ;
@@ -318,9 +318,9 @@ const char *str_to_str(object_t *self) {
     return self->data.ptr;
 }
 
-cmp_result_t str_cmp(object_t *self, object_t *other) {
-    const char *s1 = object_to_str(other);
-    const char *s2 = self->data.ptr;
+cmp_result_t str_cmp(object_t *self, object_t *other, vm_t *vm) {
+    const char *s1 = self->data.ptr;
+    const char *s2 = object_to_str(other);
     int c = strcmp(s1, s2);
     if (c < 0) return CMP_LT;
     else if (c > 0) return CMP_GT;
@@ -403,6 +403,22 @@ void list_extend(list_t *list, list_t *other) {
     int new_len = old_len + other->len;
     list_grow(list, new_len);
     for (int i = old_len; i < new_len; i++) list->elems[i] = other->elems[i - old_len];
+}
+
+vm_t *list_sort_vm;
+int list_sort_compare(const void *p1, const void *p2) {
+    object_t *obj1 = *(object_t **)p1;
+    object_t *obj2 = *(object_t **)p2;
+    cmp_result_t cmp = object_cmp(obj1, obj2, list_sort_vm);
+    return cmp == CMP_LT? -1: cmp == CMP_GT? 1: 0;
+}
+void list_sort(list_t *list, vm_t *vm) {
+
+    // groooosss, if we used qsort_r we could pass the vm as data, but
+    // qsort_r is gnu only, soooo here we are
+    list_sort_vm = vm;
+
+    qsort(list->elems, list->len, sizeof *list->elems, list_sort_compare);
 }
 
 object_t *object_create_list(list_t *list) {
@@ -521,6 +537,8 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
     } else if (!strcmp(name, "push")) {
         object_t *value = vm_pop(vm);
         list_push(list, value);
+    } else if (!strcmp(name, "sort")) {
+        list_sort(list, vm);
     } else if (!strcmp(name, "unbuild")) {
         // the inverse of list .build
         for (int i = 0; i < list->len; i++) vm_push(vm, list->elems[i]);
@@ -969,6 +987,20 @@ void cls_print(object_t *self) {
     } else printf("<'%s' object at %p>", self->type->name, self);
 }
 
+cmp_result_t cls_cmp(object_t *self, object_t *other, vm_t *vm) {
+    cls_t *cls = self->type->data;
+    object_t *cmp_obj = dict_get(cls->getters, "__cmp__");
+    if (cmp_obj) {
+        vm_push(vm, self);
+        vm_push(vm, other);
+        object_getter(cmp_obj, "@", vm);
+        object_t *result_obj = vm_pop(vm);
+        if (result_obj == &static_null) return CMP_NE;
+        int result_i = object_to_int(result_obj);
+        return result_i < 0? CMP_LT: result_i > 0? CMP_GT: CMP_EQ;
+    } else return self == other? CMP_EQ: CMP_NE;
+}
+
 bool cls_type_getter(object_t *self, const char *name, vm_t *vm) {
     // NOTE: self is a class type
     type_t *type = self->data.ptr;
@@ -1090,6 +1122,7 @@ object_t *object_create_cls(const char *name, vm_t *vm) {
     type->name = name;
     type->data = cls;
     type->print = cls_print;
+    type->cmp = cls_cmp;
     type->type_getter = cls_type_getter;
     type->type_setter = cls_type_setter;
     type->getter = cls_getter;

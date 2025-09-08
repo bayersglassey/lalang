@@ -3,12 +3,13 @@
 [X] conditionals
 [X] custom classes
 [X] iterators
+[X] fix operator call order: `x y +` should be equivalent to `y x .+` (as it were)
 [ ] standard library (stdlib.lala)
     [X] enumerate
-    [ ] sorted (first add list .reverse, then use it for this)
-    [ ] reversed (first add list .sort, then use it for this)
+    [X] sorted (first add list .sort, then use it for this)
+    [ ] reversed (first add list .reverse, then use it for this)
     [X] map
-    [ ] filter
+    [X] filter
     ...can we add some kind of fancy way to do comprehensions?..
 [ ] cli options
 [X] locals

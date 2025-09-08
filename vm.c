@@ -361,7 +361,7 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
         printf(" %i", code->bytecodes[++i].i);
     } else if (
         instruction == INSTR_GETTER || instruction == INSTR_SETTER ||
-        instruction >= FIRST_GLOBAL_INSTR || instruction <= LAST_LOCAL_INSTR
+        instruction >= FIRST_GLOBAL_INSTR && instruction <= LAST_LOCAL_INSTR
     ) {
         int j = code->bytecodes[++i].i;
         printf(" %s", vm->str_cache->items[j].name);
@@ -448,9 +448,9 @@ void vm_eval(vm_t *vm, code_t *code) {
             // operator
             int op = instruction - FIRST_OP_INSTR;
             if (op >= FIRST_CMP_OP && op <= LAST_CMP_OP) {
-                object_t *self = vm_pop(vm);
                 object_t *other = vm_pop(vm);
-                cmp_result_t cmp = object_cmp(self, other);
+                object_t *self = vm_pop(vm);
+                cmp_result_t cmp = object_cmp(self, other, vm);
                 bool b;
                 switch (instruction) {
                     case INSTR_EQ: b = cmp == CMP_EQ; break;

@@ -38,7 +38,7 @@ typedef void c_code_t(vm_t *vm);
 typedef bool to_bool_t(object_t *self);
 typedef int to_int_t(object_t *self);
 typedef const char *to_str_t(object_t *self);
-typedef cmp_result_t cmp_t(object_t *self, object_t *other);
+typedef cmp_result_t cmp_t(object_t *self, object_t *other, vm_t *vm);
 
 // object attributes/methods
 typedef bool getter_t(object_t *self, const char *name, vm_t *vm);
@@ -185,7 +185,7 @@ object_t *object_create(type_t *type);
 bool object_to_bool(object_t *self);
 int object_to_int(object_t *self);
 const char *object_to_str(object_t *self);
-cmp_result_t object_cmp(object_t *self, object_t *other);
+cmp_result_t object_cmp(object_t *self, object_t *other, vm_t *vm);
 void object_getter(object_t *self, const char *name, vm_t *vm);
 void object_setter(object_t *self, const char *name, vm_t *vm);
 void object_print(object_t *self);
@@ -243,6 +243,7 @@ list_t *list_create();
 list_t *list_copy(list_t *list);
 void list_grow(list_t *list, int new_len);
 void list_extend(list_t *list, list_t *other);
+void list_sort(list_t *list, vm_t *vm);
 object_t *object_create_list(list_t *list);
 object_t *list_get(list_t *list, int i);
 void list_set(list_t *list, int i, object_t *value);

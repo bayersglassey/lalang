@@ -74,3 +74,6 @@
         } @ifelse
     } { } @while
 ] "__next__" filter .__getters__ .set
+
+# "zabcba" @sorted -> ["a", "a", "b", "b", "c", "z"]
+{ @list @dup .sort } =sorted

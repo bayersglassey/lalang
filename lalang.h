@@ -403,6 +403,7 @@ void vm_print_stack(vm_t *vm);
 void vm_print_code(vm_t *vm, code_t *code);
 object_t *vm_iter(vm_t *vm);
 void vm_eval(vm_t *vm, code_t *code);
+void vm_include(vm_t *vm, const char *filename);
 
 
 /****************

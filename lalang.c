@@ -18,11 +18,23 @@ static bool getenv_bool(const char *name, bool default_value) {
 }
 
 int main(int n_args, char **args) {
+
+    // parse env vars
+    bool quiet = getenv_bool("QUIET", false);
+    bool eval = getenv_bool("EVAL", true);
+    bool stdlib = getenv_bool("STDLIB", true);
+    bool print_tokens = getenv_bool("PRINT_TOKENS", false);
+    bool print_code = getenv_bool("PRINT_CODE", false);
+    bool print_stack = getenv_bool("PRINT_STACK", false);
+    bool print_eval = getenv_bool("PRINT_EVAL", false);
+
     vm_t *vm = vm_create();
     compiler_t *compiler = compiler_create(vm);
 
-    bool quiet = getenv_bool("QUIET", false);
-    bool eval = getenv_bool("EVAL", true);
+    // NOTE: include stdlib *before* turning on any debug print stuff!..
+    // we can debug the stdlib itself separately
+    if (stdlib) vm_include(vm, "stdlib.lala");
+
     compiler->debug_print_tokens = getenv_bool("PRINT_TOKENS", false);
     compiler->debug_print_code = getenv_bool("PRINT_CODE", false);
     vm->debug_print_stack = getenv_bool("PRINT_STACK", false);

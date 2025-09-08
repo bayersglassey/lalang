@@ -138,15 +138,7 @@ void builtin_clear(vm_t *vm) {
 
 void builtin_include(vm_t *vm) {
     const char *filename = object_to_str(vm_pop(vm));
-    char *text = read_file(filename, false);
-    compiler_t *compiler = compiler_create(vm);
-    compiler_compile(compiler, text);
-    code_t *code = compiler_pop_runnable_code(compiler);
-    if (!code) {
-        fprintf(stderr, "Code included from '%s' had an unterminated block\n", filename);
-        exit(1);
-    }
-    vm_eval(vm, code);
+    vm_include(vm, filename);
 }
 
 void builtin_error(vm_t *vm) {
@@ -490,4 +482,16 @@ void vm_eval(vm_t *vm, code_t *code) {
     if (code->is_func) {
         vm->locals = prev_locals;
     }
+}
+
+void vm_include(vm_t *vm, const char *filename) {
+    char *text = read_file(filename, false);
+    compiler_t *compiler = compiler_create(vm);
+    compiler_compile(compiler, text);
+    code_t *code = compiler_pop_runnable_code(compiler);
+    if (!code) {
+        fprintf(stderr, "Code included from '%s' had an unterminated block\n", filename);
+        exit(1);
+    }
+    vm_eval(vm, code);
 }

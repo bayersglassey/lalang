@@ -1,0 +1,18 @@
+
+# "abc" @enumerate @list -> [["a", 0], ["b", 1], ["c", 2]]
+"enumerate" @class =enumerate
+[
+    =self
+    @iter self =.it
+    0 self =.i
+    self
+] "__init__" enumerate .__getters__ .set
+{ } "__iter__" enumerate .__getters__ .set
+[
+    =self
+    self .it @next {
+        self .i @pair =next
+        self .i 1 + self =.i
+        next true
+    } { false } @ifelse
+] "__next__" enumerate .__getters__ .set

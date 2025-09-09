@@ -6,8 +6,8 @@
     @iter self =.it
     0 self =.i
     self
-] "__init__" enumerate .__getters__ .set
-{ } "__iter__" enumerate .__getters__ .set
+] $__init__ enumerate .add_getter
+{ } $__iter__ enumerate .add_getter
 [
     =self
     self .it @next {
@@ -15,7 +15,7 @@
         self .i 1 + self =.i
         next true
     } { false } @ifelse
-] "__next__" enumerate .__getters__ .set
+] $__next__ enumerate .add_getter
 
 
 # ( 0 3 @range ) { 10 * } @map @list -> [0, 10, 20]
@@ -25,15 +25,15 @@
     self =.func
     @iter self =.it
     self
-] "__init__" map .__getters__ .set
-{ } "__iter__" map .__getters__ .set
+] $__init__ map .add_getter
+{ } $__iter__ map .add_getter
 [
     =self
     self .it @next {
         self .func @
         true
     } { false } @ifelse
-] "__next__" map .__getters__ .set
+] $__next__ map .add_getter
 
 
 # ( 0 6 @range ) { 2 % 0 == } @filter @list -> [0, 2, 4]
@@ -43,8 +43,8 @@
     self =.func
     @iter self =.it
     self
-] "__init__" filter .__getters__ .set
-{ } "__iter__" filter .__getters__ .set
+] $__init__ filter .add_getter
+{ } $__iter__ filter .add_getter
 [
     =self
 
@@ -73,10 +73,41 @@
             false # break out of the while-loop
         } @ifelse
     } { } @while
-] "__next__" filter .__getters__ .set
+] $__next__ filter .add_getter
 
 # "zabcba" @sorted -> ["a", "a", "b", "b", "c", "z"]
-{ @list @dup .sort } =sorted
+{ @list @dup .sort } =$sorted
 
 # "abc" @reversed -> ["c", "b", "a"]
-{ @list @dup .reverse } =reversed
+{ @list @dup .reverse } =$reversed
+
+# @conds: implements if..elif..elif..else
+{
+    @locals [ =locals
+        # get arguments
+        =n
+        =else
+        n 2 * list .build =conds
+
+        # check the conds
+        0 =i false =matched
+        { ( matched ! ) ( i n < ) & } {
+            i 2 * conds .get .copy =cond
+            locals cond =.locals
+            @cond =matched
+            matched {
+                i 2 * 1 + conds .get .copy =then
+                locals then =.locals
+                @then
+            } @if
+            i 1 + =i
+        } @while
+
+        # if no conds matched, run the else-branch
+        matched ! {
+            else .copy =else
+            locals else =.locals
+            @else
+        } @if
+    ] @
+} =$conds

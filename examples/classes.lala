@@ -1,12 +1,12 @@
 
 "A" @class =A
 
-[ =self self =.data self ] "__init__" A .__getters__ .set
-[ "A(" .write .data .write ")" .write ] "__print__" A .__getters__ .set
-[ @drop "Get hello!\n" .write ] "hello" A .__getters__ .set
-[ @drop "Set hello!\n" .write ] "hello" A .__setters__ .set
-[ @drop "Get hello class!\n" .write ] "hello" A .__class_getters__ .set
-[ @drop "Set hello class!\n" .write ] "hello" A .__class_setters__ .set
+[ =self self =.data self ] $__init__ A .add_getter
+[ "A(" .write .data .write ")" .write ] $__print__ A .add_getter
+[ @drop "Get hello!\n" .write ] $hello A .add_getter
+[ @drop "Set hello!\n" .write ] $hello A .add_setter
+[ @drop "Get hello class!\n" .write ] $hello A .add_class_getter
+[ @drop "Set hello class!\n" .write ] $hello A .add_class_setter
 
 # class attr
 10 A =.x

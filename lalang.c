@@ -54,7 +54,7 @@ int main(int n_args, char **args) {
         compiler_compile(compiler, line);
         code_t *code = compiler_pop_runnable_code(compiler);
         if (eval && code && code->len) {
-            vm_eval(vm, code);
+            vm_eval(vm, code, NULL);
             if (!quiet) vm_print_stack(vm);
         }
         continuing_line = !code;

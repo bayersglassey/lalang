@@ -1,3 +1,7 @@
+#
+# Defining iterators manually, as if the language didn't have them built-in
+#
+
 
 "iter" @class =iter
 [
@@ -19,7 +23,7 @@
         [ =self self .i self .data .get_key ] self =.get
     } @if
     self .len null == { data .__iter__ } { self } @ifelse
-] "__init__" iter .__getters__ .set
+] $__init__ iter .add_getter
 [
     =self
     self .i self .len >=
@@ -30,7 +34,7 @@
         true
     }
     @ifelse
-] "__next__" iter .__getters__ .set
+] $__next__ iter .add_getter
 
 
 [
@@ -38,7 +42,7 @@
     =body
     { it .__next__ }
     body @while
-] =for
+] =$for
 
 
 "Iterating over an int:\n" .write
@@ -55,13 +59,13 @@ print ( "x" 10 "y" 20 2 dict .build ) @for
 
 "Iterating over a custom iterable:\n" .write
 "CustomIterable" @class =CustomIterable
-[ =self 0 self =.i self ] "__init__" CustomIterable .__getters__ .set
-{ } "__iter__" CustomIterable .__getters__ .set
+[ =self 0 self =.i self ] $__init__ CustomIterable .add_getter
+{ } $__iter__ CustomIterable .add_getter
 [
     =self
     self .i 0 == { "hello" true } @if
     self .i 1 == { "world" true } @if
     self .i 2 == { false } @if
     self .i 1 + self =.i
-] "__next__" CustomIterable .__getters__ .set
+] $__next__ CustomIterable .add_getter
 print @CustomIterable @for

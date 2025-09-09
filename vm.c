@@ -248,12 +248,14 @@ object_t *vm_get_or_create_int(vm_t *vm, int i) {
     }
 }
 
-void vm_add_builtin(vm_t *vm, const char *name, c_code_t *code) {
-    dict_set(vm->globals, name, object_create_func_with_c_code(name, code, NULL));
+void vm_add_builtin(vm_t *vm, const char *name, c_code_t *c_code) {
+    func_t *func = func_create_with_c_code(name, c_code);
+    dict_set(vm->globals, name, object_create_func(func));
 }
 
 void vm_push_code(vm_t *vm, code_t *code) {
-    list_push(vm->code_cache, object_create_func(NULL, code, NULL));
+    func_t *func = func_create_with_code(NULL, code);
+    list_push(vm->code_cache, object_create_func(func));
 }
 
 void vm_init(vm_t *vm) {
@@ -381,12 +383,16 @@ object_t *vm_iter(vm_t *vm) {
     return vm_pop(vm);
 }
 
-void vm_eval(vm_t *vm, code_t *code) {
+void vm_eval(vm_t *vm, code_t *code, dict_t *locals) {
+
+    // Set up locals
     dict_t *prev_locals;
-    if (code->is_func) {
+    if (!locals && code->is_func) locals = dict_create();
+    if (locals) {
         prev_locals = vm->locals;
-        vm->locals = dict_create();
+        vm->locals = locals;
     }
+
     for (int i = 0; i < code->len; i++) {
 
         if (vm->debug_print_eval) {
@@ -433,6 +439,16 @@ void vm_eval(vm_t *vm, code_t *code) {
             } else {
                 vm_push(vm, obj);
             }
+        } else if (instruction == INSTR_RENAME_FUNC) {
+            int j = code->bytecodes[++i].i;
+            const char *name = vm->str_cache->items[j].name;
+            object_t *obj = vm_top(vm);
+            if (obj->type != &func_type) {
+                fprintf(stderr, "Can't use '$' with object of type '%s'\n", obj->type->name);
+                exit(1);
+            }
+            func_t *func = obj->data.ptr;
+            func->name = name;
         } else if (instruction == INSTR_STORE_GLOBAL || instruction == INSTR_STORE_LOCAL) {
             int j = code->bytecodes[++i].i;
             const char *name = vm->str_cache->items[j].name;
@@ -479,7 +495,9 @@ void vm_eval(vm_t *vm, code_t *code) {
         }
 
     }
-    if (code->is_func) {
+
+    // Restore locals
+    if (locals) {
         vm->locals = prev_locals;
     }
 }
@@ -493,5 +511,5 @@ void vm_include(vm_t *vm, const char *filename) {
         fprintf(stderr, "Code included from '%s' had an unterminated block\n", filename);
         exit(1);
     }
-    vm_eval(vm, code);
+    vm_eval(vm, code, NULL);
 }

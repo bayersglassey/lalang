@@ -22,6 +22,7 @@ const char *instruction_names[N_INSTRS] = {
     "CALL_LOCAL",
     "GETTER",
     "SETTER",
+    "RENAME_FUNC",
     "NEG",
     "ADD",
     "SUB",
@@ -74,6 +75,7 @@ int instruction_args(instruction_t instruction) {
         case INSTR_LOAD_LOCAL:
         case INSTR_STORE_LOCAL:
         case INSTR_CALL_LOCAL:
+        case INSTR_RENAME_FUNC:
             return 1;
         default: return 0;
     }

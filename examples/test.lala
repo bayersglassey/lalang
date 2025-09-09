@@ -22,10 +22,17 @@ d2 @print
 "While test:\n" .write
 0 =i { i 5 < } { i @print i 1 + =i } @while # 0 1 2 3 4
 
-"Func args test:\n" .write
-{ + } =add10
-( 10 1 list .build ) add10 =.args
-5 @add10 @print # 15
+"Func stack test:\n" .write
+{ + } =$f
+10 f .push_stack
+f .stack @print # [10]
+5 @f @print # 15
+
+"Func locals test:\n" .write
+[ 'x x + ] =$f
+10 "x" f .set_local
+f .locals @print # {x: 10}
+5 @f @print # 15
 
 "Recursion test:\n" .write
 {
@@ -33,7 +40,7 @@ d2 @print
     { @drop 1 }
     { @dup 1 - @factorial * }
     @ifelse
-} =factorial
+} =$factorial
 1 @factorial @print # 1
 2 @factorial @print # 2
 3 @factorial @print # 6
@@ -46,7 +53,7 @@ d2 @print
     { 1 }
     { n 1 - @factorial n * }
     @ifelse
-] =factorial2
+] =$factorial2
 1 @factorial2 @print # 1
 2 @factorial2 @print # 2
 3 @factorial2 @print # 6
@@ -54,14 +61,26 @@ d2 @print
 
 "Iteration test:\n" .write
 "abc" @iter =it
-it @print
 it @next @print @print # "a" true
 it @next @print @print # "b" true
 it @next @print @print # "c" true
 it @next @print # false
+
+"For-loop test:\n" .write
 print "abc" @for # "a" "b" "c"
 print ( 1 3 @range ) @for # 1 2
 print ( "a" "b" 2 list .build ) @for # "a" "b"
 print 3 .times @for # 0 1 2
+
+"List/dict constructors test:\n" .write
 1 3 @range @list @print # [1, 2]
-"x" 1 @pair "y" 2 @pair 2 list .build @dict @print # {x: 1, y: 2}
+"x" 1 @pair "y" 2 @pair 2 list .build @dict =d d @print # {x: 1, y: 2}
+d .items @list @print # [["x", 1], ["y", 2]]
+
+"Pair/unpair test:\n" .write
+"a" "b" @pair =p
+p @print # ["a", "b"]
+p .unpair @print_stack @clear # "a" "b"
+
+"End of tests. Stack should now be empty!\n" .write
+@print_stack

@@ -1,58 +1,95 @@
 
-[ {
-    @locals .copy =attrs
-    =name
+
+[ @class =cls [ =self self =.data self ] $__init__ cls .add_getter cls ] =$_marker
+"class_attr" @_marker =class_attr
+"class_getter" @_marker =class_getter
+"class_setter" @_marker =class_setter
+"getter" @_marker =getter
+"setter" @_marker =setter
+
+
+[
+    =name .to_dict =attrs
     name @class =cls
 
-    0 =i { i attrs .len < } {
-        i attrs .get_item =key =value
-        value @typeof func == {
+    {
+        .unpair =value =key
+        value @typeof =T
+        { T class_attr == } {
+            value .data key cls .__dict__ .set
+        } { T getter == } {
+            value .data key cls .__getters__ .set
+        } { T setter == } {
+            value .data key cls .__setters__ .set
+        } { T getter_setter == } {
+            value .data .unpair =setter =getter
+            getter key cls .__getters__ .set
+            setter key cls .__setters__ .set
+        } { T class_getter == } {
+            value .data key cls .__class_getters__ .set
+        } { T class_setter == } {
+            value .data key cls .__class_setters__ .set
+        } { T class_getter_setter == } {
+            value .data .unpair =setter =getter
+            getter key cls .__class_getters__ .set
+            setter key cls .__class_setters__ .set
+        } { T func == T } {
+            # functions not explicitly marked with @class_attr are treated as getters
             value key cls .__getters__ .set
         } {
+            # default, i.e. somethig "unmarked": behaves like class_attr
             value key cls .__dict__ .set
-        } @ifelse
-        i 1 + =i
-    } @while
-    
-    cls name @globals .set
-} ] @ =buildclass
+        } 6 @conds
+    } attrs .items @for
+
+    cls
+] =$buildclass
 
 
-{
-    @locals
+[
+    =supercls =cls
+
     [
-        =locals =cls
-        cls .__dict__ locals .update
-        cls .__getters__ locals .update
-    ] @
-} =inherit
+        # Like dict .update, but doesn't overwrite existing keys
+        =d2 =d1
+        {
+            .unpair =value =key
+            key d1 .has ! { value key d1 .set } @if
+        } d2 .items @for
+    ] =$weak_update
+
+    cls .__dict__ supercls.__dict__ @weak_update
+    cls .__getters__ supercls.__getters__ @weak_update
+    cls .__setters__ supercls.__setters__ @weak_update
+    cls .__class_getters__ supercls.__class_getters__ @weak_update
+    cls .__class_setters__ supercls.__class_setters__ @weak_update
+
+    cls
+] =$inherits
 
 
 ##############################################################
 # TESTS
 
+"@buildclass test:\n" .write
 [
     "hello" =message
-    [ =self self =.x self ] =__init__
-    [ .x 1 + ] =y
-    "A" @buildclass
-] @
+    [ =self self =.x self ] =$__init__
+    [ .x 1 + ] =$y
+    [ .x 1 - ] y @setter
+] "A" @buildclass =A
+10 @A =a
+a .message @print # "hello"
+a .x @print # 10
+a .y @print # 11
+a =.y @print # 9
 
-"A test:\n" .write
-3 @A =a
-a .message @print
-a .x @print
-a .y @print
-
-
+"@inherits test:\n" .write
 [
-    A @inherit
-    [ .x 10 * ] =y
-    "B" @buildclass
-] @
-
-"B test:\n" .write
-4 @B =b
-b .message @print
-b .x @print
-b .y @print
+    [ .x 10 * ] =$y
+] "B" @buildclass @inherits A =B
+20 @B =b
+b .message @print # "hello"
+b .x @print # 20
+b .y @print # 200
+b =.y @print # 19

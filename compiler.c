@@ -276,10 +276,27 @@ void compiler_compile(compiler_t *compiler, char *text) {
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_SETTER);
             code_push_i(code, i);
-        } else if (first_c == '=') {
-            // store global/local
+        } else if (first_c == '\'') {
+            // mark variable as local
+            // TODO: get rid of this... the syntax is gross
+            // and like, how do we declare a global?.. "''"?..
             const char *s = parse_name(token + 1);
             int i = vm_get_cached_str_i(vm, s);
+            compiler_frame_t *last_func_frame = compiler->last_func_frame;
+            if (!last_func_frame) {
+                fprintf(stderr, "Invalid outside of function scope: [%s]\n", token);
+                exit(1);
+            }
+            compiler_frame_push_local(last_func_frame, i);
+        } else if (first_c == '=') {
+            // store global/local
+            bool rename_func = token[1] == '$';
+            const char *s = parse_name(token + (rename_func? 2: 1));
+            int i = vm_get_cached_str_i(vm, s);
+            if (rename_func) {
+                code_push_instruction(code, INSTR_RENAME_FUNC);
+                code_push_i(code, i);
+            }
             compiler_frame_t *last_func_frame = compiler->last_func_frame;
             if (last_func_frame) {
                 compiler_frame_push_local(last_func_frame, i);
@@ -295,6 +312,12 @@ void compiler_compile(compiler_t *compiler, char *text) {
             instruction_t instruction = compiler_process_global_ref(compiler,
                 INSTR_CALL_GLOBAL, i);
             code_push_instruction(code, instruction);
+            code_push_i(code, i);
+        } else if (first_c == '$') {
+            // rename func
+            const char *s = parse_name(token + 1);
+            int i = vm_get_cached_str_i(vm, s);
+            code_push_instruction(code, INSTR_RENAME_FUNC);
             code_push_i(code, i);
         } else if (!strcmp(token, "(") || !strcmp(token, ")")) {
             // no-ops!

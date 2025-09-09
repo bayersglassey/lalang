@@ -188,7 +188,7 @@ bool bool_getter(object_t *self, const char *name, vm_t *vm) {
     }
 
     switch (instruction) {
-        case INSTR_NOT: i = ~i; break;
+        case INSTR_NOT: i = !i; break;
         case INSTR_AND: i &= j; break;
         case INSTR_OR: i |= j; break;
         case INSTR_XOR: i ^= j; break;
@@ -561,8 +561,8 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
             fprintf(stderr, "Can't unpair list of size %i (!= 2)\n", list->len);
             exit(1);
         }
-        vm_push(vm, list->elems[1]);
         vm_push(vm, list->elems[0]);
+        vm_push(vm, list->elems[1]);
     } else return false;
     return true;
 }
@@ -739,7 +739,8 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
         !strcmp(name, "get_value") ||
         !strcmp(name, "get_item")
     ) {
-        // hacky methods, but useful for iteration
+        // hacky methods, but useful for old-school manual iteration
+        // (i.e. without iterators)
         int i = object_to_int(vm_pop(vm));
         if (i < 0 || i >= dict->len) {
             fprintf(stderr, "Index %i out of bounds for dict of size %i\n", i, dict->len);
@@ -897,41 +898,41 @@ type_t iterator_type = {
 * FUNC
 ****************/
 
-func_t *func_create_with_c_code(const char *name, c_code_t *c_code, list_t *args) {
+func_t *func_create(const char *name) {
     func_t *func = calloc(1, sizeof *func);
     if (!func) {
-        fprintf(stderr, "Failed to allocate c_code func: %s\n", name? name: "(no name)");
+        fprintf(stderr, "Failed to allocate func: %s\n", name? name: "(no name)");
         exit(1);
     }
     func->name = name;
+    return func;
+}
+
+func_t *func_copy(func_t *func) {
+    func_t *copy = func_create(func->name);
+    *copy = *func;
+    if (copy->stack) copy->stack = list_copy(copy->stack);
+    if (copy->locals) copy->locals = dict_copy(copy->locals);
+    return copy;
+}
+
+func_t *func_create_with_c_code(const char *name, c_code_t *c_code) {
+    func_t *func = func_create(name);
     func->is_c_code = true;
     func->u.c_code = c_code;
-    func->args = args? args: list_create();
     return func;
 }
 
-func_t *func_create(const char *name, code_t *code, list_t *args) {
-    func_t *func = calloc(1, sizeof *func);
-    if (!func) {
-        fprintf(stderr, "Failed to allocate code func: %s\n", name? name: "(no name)");
-        exit(1);
-    }
-    func->name = name;
+func_t *func_create_with_code(const char *name, code_t *code) {
+    func_t *func = func_create(name);
     func->is_c_code = false;
     func->u.code = code;
-    func->args = args? args: list_create();
     return func;
 }
 
-object_t *object_create_func_with_c_code(const char *name, c_code_t *c_code, list_t *args) {
+object_t *object_create_func(func_t *func) {
     object_t *obj = object_create(&func_type);
-    obj->data.ptr = func_create_with_c_code(name, c_code, args);
-    return obj;
-}
-
-object_t *object_create_func(const char *name, code_t *code, list_t *args) {
-    object_t *obj = object_create(&func_type);
-    obj->data.ptr = func_create(name, code, args);
+    obj->data.ptr = func;
     return obj;
 }
 
@@ -947,16 +948,49 @@ void func_print(object_t *self) {
 bool func_getter(object_t *self, const char *name, vm_t *vm) {
     func_t *func = self->data.ptr;
     if (!strcmp(name, "@")) {
-        for (int i = func->args->len - 1; i >= 0; i--) {
-            vm_push(vm, func->args->elems[i]);
+        if (func->is_c_code && func->locals) {
+            fprintf(stderr, "Tried to call a C function (%s) with locals\n", func->name);
+            exit(1);
+        }
+        if (func->stack) for (int i = func->stack->len - 1; i >= 0; i--) {
+            vm_push(vm, func->stack->elems[i]);
         }
         if (func->is_c_code) {
             func->u.c_code(vm);
         } else {
-            vm_eval(vm, func->u.code);
+            dict_t *locals = func->locals? dict_copy(func->locals): NULL;
+            vm_eval(vm, func->u.code, locals);
         }
-    } else if (!strcmp(name, "args")) {
-        vm_push(vm, object_create_list(func->args));
+    } else if (!strcmp(name, "to_dict")) {
+        // run the function, and return its locals as a dict...
+        // kinda hacky, but super useful for metaprogramming
+        if (func->is_c_code) {
+            fprintf(stderr, "Tried to call a C function (%s) with locals\n", func->name);
+            exit(1);
+        }
+        if (func->stack) for (int i = func->stack->len - 1; i >= 0; i--) {
+            vm_push(vm, func->stack->elems[i]);
+        }
+        dict_t *locals = func->locals? dict_copy(func->locals): dict_create();
+        vm_eval(vm, func->u.code, locals);
+        vm_push(vm, object_create_dict(locals));
+    } else if (!strcmp(name, "name")) {
+        vm_push(vm, func->name? vm_get_or_create_str(vm, func->name): &static_null);
+    } else if (!strcmp(name, "copy")) {
+        vm_push(vm, object_create_func(func_copy(func)));
+    } else if (!strcmp(name, "stack")) {
+        vm_push(vm, func->stack? object_create_list(func->stack): &static_null);
+    } else if (!strcmp(name, "locals")) {
+        vm_push(vm, func->locals? object_create_dict(func->locals): &static_null);
+    } else if (!strcmp(name, "push_stack")) {
+        object_t *obj = vm_pop(vm);
+        if (!func->stack) func->stack = list_create();
+        list_push(func->stack, obj);
+    } else if (!strcmp(name, "set_local")) {
+        const char *name = object_to_str(vm_pop(vm));
+        object_t *obj = vm_pop(vm);
+        if (!func->locals) func->locals = dict_create();
+        dict_set(func->locals, name, obj);
     } else if (!strcmp(name, "print_code")) {
         if (func->is_c_code) printf("Can't print code of built-in function!\n");
         else vm_print_code(vm, func->u.code);
@@ -966,13 +1000,31 @@ bool func_getter(object_t *self, const char *name, vm_t *vm) {
 
 bool func_setter(object_t *self, const char *name, vm_t *vm) {
     func_t *func = self->data.ptr;
-    if (!strcmp(name, "args")) {
+    if (!strcmp(name, "name")) {
+        const char *name = object_to_str(vm_pop(vm));
+        func->name = name;
+    } else if (!strcmp(name, "stack")) {
         object_t *obj = vm_pop(vm);
-        if (obj->type != &list_type) {
-            fprintf(stderr, "Tried to assign '%s' object to func args\n", obj->type->name);
-            exit(1);
+        if (obj == &static_null) func->stack = NULL;
+        else {
+            if (obj->type != &list_type) {
+                fprintf(stderr, "Tried to assign '%s' object to stack of func: %s\n",
+                    obj->type->name, func->name? func->name: "(no name)");
+                exit(1);
+            }
+            func->stack = obj->data.ptr;
         }
-        func->args = obj->data.ptr;
+    } else if (!strcmp(name, "locals")) {
+        object_t *obj = vm_pop(vm);
+        if (obj == &static_null) func->locals = NULL;
+        else {
+            if (obj->type != &dict_type) {
+                fprintf(stderr, "Tried to assign '%s' object to locals of func: %s\n",
+                    obj->type->name, func->name? func->name: "(no name)");
+                exit(1);
+            }
+            func->locals = obj->data.ptr;
+        }
     } else return false;
     return true;
 }
@@ -1034,6 +1086,27 @@ bool cls_type_getter(object_t *self, const char *name, vm_t *vm) {
         vm_push(vm, object_create_dict(cls->class_getters));
     } else if (!strcmp(name, "__class_setters__")) {
         vm_push(vm, object_create_dict(cls->class_setters));
+    } else if (
+        !strcmp(name, "add_getter") ||
+        !strcmp(name, "add_setter") ||
+        !strcmp(name, "add_class_getter") ||
+        !strcmp(name, "add_class_setter")
+    ) {
+        dict_t *dict;
+        // NOTE: make sure we don't shadow the "name" variable when doing
+        // these checks...
+        if (name[4] == 'c') {
+            if (name[10] == 's') dict = cls->class_setters;
+            else dict = cls->class_getters;
+        } else {
+            if (name[4] == 's') dict = cls->setters;
+            else dict = cls->getters;
+        }
+
+        object_t *obj = vm_pop(vm);
+        object_getter(obj, "name", vm);
+        const char *name = object_to_str(vm_pop(vm));
+        dict_set(dict, name, obj);
     } else {
         // lookup name in class attrs
         object_t *obj = dict_get(cls->class_attrs, name);

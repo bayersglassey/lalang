@@ -76,6 +76,7 @@ enum instruction {
     INSTR_CALL_LOCAL,
     INSTR_GETTER,
     INSTR_SETTER,
+    INSTR_RENAME_FUNC,
 
     // OPS
     // NOTE: the order of these is important!
@@ -332,11 +333,15 @@ struct func {
         c_code_t *c_code;
         code_t *code;
     } u;
-    list_t *args;
+    list_t *stack;
+    dict_t *locals;
 };
 
-object_t *object_create_func_with_c_code(const char *name, c_code_t *c_code, list_t *args);
-object_t *object_create_func(const char *name, code_t *code, list_t *args);
+func_t *func_create(const char *name);
+func_t *func_copy(func_t *func);
+func_t *func_create_with_c_code(const char *name, c_code_t *c_code);
+func_t *func_create_with_code(const char *name, code_t *code);
+object_t *object_create_func(func_t *func);
 
 extern type_t func_type;
 
@@ -404,7 +409,7 @@ vm_t *vm_create();
 void vm_print_stack(vm_t *vm);
 void vm_print_code(vm_t *vm, code_t *code);
 object_t *vm_iter(vm_t *vm);
-void vm_eval(vm_t *vm, code_t *code);
+void vm_eval(vm_t *vm, code_t *code, dict_t *locals);
 void vm_include(vm_t *vm, const char *filename);
 
 

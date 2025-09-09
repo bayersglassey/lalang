@@ -1,0 +1,12 @@
+
+[
+    =x
+    { x 1 == } { "A" }
+    { x 2 == } { "B" }
+    { "C" } # else-branch
+    2 @conds
+] =$f
+
+1 @f @print # "A"
+2 @f @print # "B"
+99 @f @print # "C"

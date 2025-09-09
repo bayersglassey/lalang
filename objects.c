@@ -355,13 +355,17 @@ bool str_getter(object_t *self, const char *name, vm_t *vm) {
         iterator_t *it = iterator_create(ITER_STR, strlen(s),
             (iterator_data_t){ .str = s });
         vm_push(vm, object_create_iterator(it));
-    } else if (!strcmp(name, "get")) {
-        int i = object_to_int(vm_pop(vm));
+    } else if (!strcmp(name, "slice")) {
         int len = strlen(s);
-        if (i < 0 || i >= len) {
-            fprintf(stderr, "Attempted to get at index %i of str of size %i\n", i, len);
-            exit(1);
-        }
+        object_t *end_obj = vm_pop(vm);
+        int end = end_obj == &static_null? len: object_to_int(end_obj);
+        int start = object_to_int(vm_pop(vm));
+        iterator_t *it = iterator_create_slice(ITER_STR, len,
+            (iterator_data_t){ .str = s }, start, end);
+        vm_push(vm, object_create_iterator(it));
+    } else if (!strcmp(name, "get")) {
+        int len = strlen(s);
+        int i = get_index(object_to_int(vm_pop(vm)), len, "str");
         char c = s[i];
         vm_push(vm, vm_get_char_str(vm, c));
     } else if (!strcmp(name, "+")) {
@@ -472,11 +476,7 @@ object_t *object_create_list(list_t *list) {
 }
 
 object_t *list_get(list_t *list, int i) {
-    if (i < 0 || i >= list->len) {
-        fprintf(stderr, "Attempted to get at index %i of list of size %i\n", i, list->len);
-        exit(1);
-    }
-    return list->elems[i];
+    return list->elems[get_index(i, list->len, "list")];
 }
 
 void list_set(list_t *list, int i, object_t *value) {
@@ -484,11 +484,7 @@ void list_set(list_t *list, int i, object_t *value) {
         fprintf(stderr, "Attempting to store NULL at index %i of a list\n", i);
         exit(1);
     }
-    if (i < 0 || i >= list->len) {
-        fprintf(stderr, "Attempted to set at index %i of list of size %i\n", i, list->len);
-        exit(1);
-    }
-    list->elems[i] = value;
+    list->elems[get_index(i, list->len, "list")] = value;
 }
 
 void list_push(list_t *list, object_t *value) {
@@ -565,6 +561,13 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
     } else if (!strcmp(name, "__iter__")) {
         iterator_t *it = iterator_create(ITER_LIST, list->len,
             (iterator_data_t){ .list = list });
+        vm_push(vm, object_create_iterator(it));
+    } else if (!strcmp(name, "slice")) {
+        object_t *end_obj = vm_pop(vm);
+        int end = end_obj == &static_null? list->len: object_to_int(end_obj);
+        int start = object_to_int(vm_pop(vm));
+        iterator_t *it = iterator_create_slice(ITER_LIST, list->len,
+            (iterator_data_t){ .list = list }, start, end);
         vm_push(vm, object_create_iterator(it));
     } else if (!strcmp(name, "copy")) {
         vm_push(vm, object_create_list(list_copy(list)));
@@ -841,17 +844,26 @@ const char *get_iteration_name(iteration_t iteration) {
     return iteration_names[iteration];
 }
 
-iterator_t *iterator_create(iteration_t iteration, int len, iterator_data_t data) {
+iterator_t *iterator_create_slice(iteration_t iteration, int len, iterator_data_t data,
+    int start, int end
+) {
     iterator_t *it = calloc(1, sizeof *it);
     if (!it) {
         fprintf(stderr, "Failed to allocate %s iterator\n", get_iteration_name(iteration));
         exit(1);
     }
+    if (start < 0) if ((start += len) < 0) start = 0;
+    if (end < 0) if ((end += len) < 0) end = 0;
+    else if (end > len) end = len;
     it->iteration = iteration;
-    it->i = 0;
-    it->len = len;
+    it->i = start;
+    it->end = end > len? len: end;
     it->data = data;
     return it;
+}
+
+iterator_t *iterator_create(iteration_t iteration, int len, iterator_data_t data) {
+    return iterator_create_slice(iteration, len, data, 0, len);
 }
 
 object_t *object_create_iterator(iterator_t *it) {
@@ -877,7 +889,7 @@ bool iterator_getter(object_t *self, const char *name, vm_t *vm) {
     if (!strcmp(name, "__iter__")) {
         vm_push(vm, self);
     } else if (!strcmp(name, "__next__")) {
-        if (it->i >= it->len) vm_push(vm, &static_false);
+        if (it->i >= it->end) vm_push(vm, &static_false);
         else {
             iteration_t iteration = it->iteration;
             if (iteration == ITER_RANGE) {
@@ -886,15 +898,15 @@ bool iterator_getter(object_t *self, const char *name, vm_t *vm) {
                 vm_push(vm, vm_get_char_str(vm, it->data.str[it->i]));
             } else if (iteration == ITER_LIST) {
                 list_t *list = it->data.list;
-                if (list->len != it->len) {
-                    fprintf(stderr, "List changed length from %i to %i while being iterated\n", it->len, list->len);
+                if (list->len != it->end) {
+                    fprintf(stderr, "List changed length from %i to %i while being iterated\n", it->end, list->len);
                     exit(1);
                 }
                 vm_push(vm, list->elems[it->i]);
             } else if (iteration >= FIRST_DICT_ITER && iteration <= LAST_DICT_ITER) {
                 dict_t *dict = it->data.dict;
-                if (dict->len != it->len) {
-                    fprintf(stderr, "Dict changed length from %i to %i while being iterated\n", it->len, dict->len);
+                if (dict->len != it->end) {
+                    fprintf(stderr, "Dict changed length from %i to %i while being iterated\n", it->end, dict->len);
                     exit(1);
                 }
                 dict_item_t *item = &dict->items[it->i];

@@ -57,6 +57,7 @@ enum cmp_result {
 };
 
 char *read_file(const char *filename, bool binary);
+int get_index(int i, int len, const char *type_name);
 
 
 /****************
@@ -313,13 +314,15 @@ union iterator_data {
 struct iterator {
     iteration_t iteration;
     int i;
-    int len;
+    int end;
     iterator_data_t data;
 };
 
 extern const char *iteration_names[N_ITERS];
 
 const char *get_iteration_name(iteration_t iteration);
+iterator_t *iterator_create_slice(iteration_t iteration, int len, iterator_data_t data,
+    int start, int end);
 iterator_t *iterator_create(iteration_t iteration, int len, iterator_data_t data);
 object_t *object_create_iterator(iterator_t *it);
 object_t *object_next(object_t *obj, vm_t *vm);

@@ -25,8 +25,8 @@
     ...see extensions/nlist.c!.. need to compile it, and implement a @cimport builtin
 [ ] break, continue, return?..
 [ ] use from Python
-[ ] support negative list/str indexes
-[ ] list/str slices (just reuse ITER_LIST, ITER_STR and add more data)
+[X] support negative list/str indexes
+[X] list/str slices (just reuse ITER_LIST, ITER_STR)
 [ ] bit shift operators
 [ ] add builtins: readfile, readline
 [ ] string methods: split, join

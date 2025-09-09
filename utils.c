@@ -27,3 +27,16 @@ char *read_file(const char *filename, bool binary) {
     fclose(file);
     return file_buffer;
 }
+
+int get_index(int i, int len, const char *type_name) {
+    if (i < 0) {
+        if ((i += len) < 0) {
+            fprintf(stderr, "Negative index %i into %s of size %i\n", i, type_name, len);
+            exit(1);
+        }
+    } else if (i >= len) {
+        fprintf(stderr, "Out-of-bounds index %i into %s of size %i\n", i, type_name, len);
+        exit(1);
+    }
+    return i;
+}

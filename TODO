@@ -10,7 +10,7 @@
     [X] reversed (first add list .reverse, then use it for this)
     [X] map
     [X] filter
-    [ ] zip
+    [X] zip
     [X] conds (i.e. if..elif...else)
     ...can we add some kind of fancy way to do comprehensions?..
 [ ] cli options

@@ -1,4 +1,8 @@
 
+"abc" "xyz" @zip @list @print # [["a", "x"], ["b", "y"], ["c", "z"]]
+"abc" "xy" @zip @list @print # [["a", "x"], ["b", "y"]]
+"ab" "xyz" @zip @list @print # [["a", "x"], ["b", "y"]]
+
 "abc" @enumerate @list @print # [["a", 0], ["b", 1], ["c", 2]]
 
 ( 0 3 @range ) { 10 * } @map @list @print # [0, 10, 20]

@@ -1,4 +1,26 @@
 
+# "abc" "xyz" @zip @list -> [["a", "x"], ["b", "y"], ["c", "z"]]
+# "abc" "xy" @zip @list -> [["a", "x"], ["b", "y"]]
+# "ab" "xyz" @zip @list -> [["a", "x"], ["b", "y"]]
+"zip" @class =zip
+[
+    =self
+    @iter self =.it2
+    @iter self =.it1
+    self
+] $__init__ zip .add_getter
+{ } $__iter__ zip .add_getter
+[
+    =self
+    self .it1 @next {
+        =val1
+        self .it2 @next {
+            =val2
+            val1 val2 @pair true
+        } { false } @ifelse
+    } { false } @ifelse
+] $__next__ zip .add_getter
+
 # "abc" @enumerate @list -> [["a", 0], ["b", 1], ["c", 2]]
 "enumerate" @class =enumerate
 [

@@ -13,6 +13,8 @@
     [X] zip
     [X] conds (i.e. if..elif...else)
     ...can we add some kind of fancy way to do comprehensions?..
+    ...yeah, I think we can with INSTR_COMMA.
+    No generator expressions, of course.
 [ ] cli options
 [X] locals
 [X] parentheses, i.e. stack assertions

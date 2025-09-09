@@ -39,6 +39,7 @@ const char *instruction_names[N_INSTRS] = {
     "LE",
     "GT",
     "GE",
+    "COMMA",
     "CALL"
 };
 
@@ -59,7 +60,29 @@ const char *operator_tokens[N_OPS] = {
     "<=",
     ">",
     ">=",
+    ",",
     "@"
+};
+
+int op_arities[N_OPS] = {
+    1, // INSTR_NEG
+    2,
+    2,
+    2,
+    2,
+    2,
+    1, // INSTR_NOT
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    1 // INSTR_CALL
 };
 
 int instruction_args(instruction_t instruction) {

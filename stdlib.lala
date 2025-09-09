@@ -21,6 +21,7 @@
     } { false } @ifelse
 ] $__next__ zip .add_getter
 
+
 # "abc" @enumerate @list -> [["a", 0], ["b", 1], ["c", 2]]
 "enumerate" @class =enumerate
 [
@@ -97,11 +98,14 @@
     } { } @while
 ] $__next__ filter .add_getter
 
+
 # "zabcba" @sorted -> ["a", "a", "b", "b", "c", "z"]
 { @list @dup .sort } =$sorted
 
+
 # "abc" @reversed -> ["c", "b", "a"]
 { @list @dup .reverse } =$reversed
+
 
 # @conds: implements if..elif..elif..else
 {
@@ -133,3 +137,50 @@
         } @if
     ] @
 } =$conds
+
+
+# list .new "a" , "b" , "c" , @join -> "abc"
+[
+    @iter =it
+    "" { + } it @for
+] =$join
+
+
+[
+    =x
+    x @typeof =T
+    { T int == } {
+        x 0 == { "0" } {
+            "0123456789" =DIGITS
+            x 0 < =neg
+            list .new
+            neg { x ~ =x "-" , } @if
+            { x 0 > } { x 10 % DIGITS .get , x 10 / =x } @while
+            @join
+        } @ifelse
+    } { T bool == } {
+        x { "true" } { "false" } @ifelse
+    } { T nulltype == } {
+        "null"
+    } { T str == } {
+        list .new "\"" , x , "\"" , @join
+    } { T list == } {
+        list .new "[" ,
+        true =first
+        { first { false =first } { @swap ", " , @swap } @ifelse @repr , } x @for
+        "]" , @join
+    } { T dict == } {
+        list .new "{" ,
+        true =first
+        { first { false =first } { @swap ", " , @swap } @ifelse .unpair =v , ": " , v @repr , } x .items @for
+        "}" , @join
+    } { T type == } {
+        list .new "<type '" , x .name , "'>" , @join
+    } { list .new "<'" , T .name , "' object>" , @join }
+    7 @conds
+    # TODO: add cases for iterator, func
+    # TODO: how can we make this work for classes?..
+    # And also for types defined in C?..
+    # We need something like a @getters function, which unlike .__getters__
+    # (which can fail), always returns a dict?..
+] =$repr

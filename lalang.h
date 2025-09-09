@@ -100,6 +100,7 @@ enum instruction {
     INSTR_LE,
     INSTR_GT,
     INSTR_GE,
+    INSTR_COMMA,
     INSTR_CALL,
 
     N_INSTRS
@@ -118,6 +119,8 @@ enum instruction {
 #define FIRST_CMP_OP (INSTR_EQ - FIRST_OP_INSTR)
 #define LAST_CMP_OP (INSTR_GE - FIRST_OP_INSTR)
 #define N_OPS (N_INSTRS - FIRST_OP_INSTR)
+
+extern int op_arities[N_OPS];
 
 extern const char *instruction_names[N_INSTRS];
 extern const char *operator_tokens[N_OPS];
@@ -187,6 +190,7 @@ bool object_to_bool(object_t *self);
 int object_to_int(object_t *self);
 const char *object_to_str(object_t *self);
 cmp_result_t object_cmp(object_t *self, object_t *other, vm_t *vm);
+list_t *object_to_pair(object_t *obj);
 void object_getter(object_t *self, const char *name, vm_t *vm);
 void object_setter(object_t *self, const char *name, vm_t *vm);
 void object_print(object_t *self);
@@ -246,6 +250,7 @@ void list_grow(list_t *list, int new_len);
 void list_extend(list_t *list, list_t *other);
 void list_sort(list_t *list, vm_t *vm);
 void list_reverse(list_t *list);
+void list_assert_pair(list_t *list);
 object_t *object_create_list(list_t *list);
 object_t *list_get(list_t *list, int i);
 void list_set(list_t *list, int i, object_t *value);
@@ -393,6 +398,7 @@ struct vm {
 
 int vm_get_size(vm_t *vm);
 object_t *vm_get(vm_t *vm, int i);
+object_t *vm_pluck(vm_t *vm, int i);
 void vm_set(vm_t *vm, int i, object_t *obj);
 object_t *vm_top(vm_t *vm);
 void vm_drop(vm_t *vm, int n);

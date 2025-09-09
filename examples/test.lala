@@ -1,5 +1,6 @@
 
 "List test:\n" .write
+list .new 1 , 2 , @print # [1, 2]
 ( "a" "b" "c" 3 list .build ) =l
 1 l .get @print # "b"
 
@@ -10,6 +11,7 @@ l @print
 l2 @print
 
 "Dict test:\n" .write
+dict .new "x" 1 @pair , "y" 2 @pair , @print # {x: 1, y: 2}
 ( "x" 10 "y" 20 2 dict .build ) =d
 "x" d .get @print # 10
 
@@ -18,6 +20,10 @@ d .copy =d2
 30 "z" d2 .set
 d @print
 d2 @print
+
+"Str test:\n" .write
+"Hello " "world" + @print # "Hello world"
+list .new "a" , "b" , "c" , @join @print # "abc"
 
 "While test:\n" .write
 0 =i { i 5 < } { i @print i 1 + =i } @while # 0 1 2 3 4
@@ -80,7 +86,7 @@ d .items @list @print # [["x", 1], ["y", 2]]
 "Pair/unpair test:\n" .write
 "a" "b" @pair =p
 p @print # ["a", "b"]
-p .unpair @print_stack @clear # "a" "b"
+p .unpair @print @print # "b" "a"
 
 "End of tests. Stack should now be empty!\n" .write
 @print_stack

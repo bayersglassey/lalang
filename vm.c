@@ -91,7 +91,7 @@ void builtin_globals(vm_t *vm) {
 }
 
 void builtin_locals(vm_t *vm) {
-    vm_push(vm, vm->locals? object_create_dict(vm->locals): object_create_null());
+    vm_push(vm, vm->locals? object_create_dict(vm->locals): &static_null);
 }
 
 void builtin_typeof(vm_t *vm) {
@@ -168,6 +168,15 @@ object_t *vm_get(vm_t *vm, int i) {
         exit(1);
     }
     return vm->stack_top[-i];
+}
+
+object_t *vm_pluck(vm_t *vm, int i) {
+    object_t *obj = vm_get(vm, i);
+    if (i > 0) {
+        for (object_t **p = vm->stack_top - i; p < vm->stack_top; p++) p[0] = p[1];
+    }
+    vm->stack_top--;
+    return obj;
 }
 
 void vm_set(vm_t *vm, int i, object_t *obj) {
@@ -483,7 +492,10 @@ void vm_eval(vm_t *vm, code_t *code, dict_t *locals) {
                 vm_push(vm, object_create_bool(b));
             } else {
                 const char *name = operator_tokens[op];
-                object_t *obj = vm_pop(vm);
+                int arity = op_arities[op];
+                int n_args = arity - 1;
+                // remove obj from underneath its arguments on the stack
+                object_t *obj = vm_pluck(vm, n_args);
                 object_getter(obj, name, vm);
             }
         }

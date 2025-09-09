@@ -103,6 +103,16 @@ cmp_result_t object_cmp(object_t *self, object_t *other, vm_t *vm) {
     else return self == other? CMP_EQ: CMP_NE;
 }
 
+list_t *object_to_pair(object_t *obj) {
+    if (obj->type != &list_type) {
+        fprintf(stderr, "Can't interpret '%s' as a pair\n", obj->type->name);
+        exit(1);
+    }
+    list_t *list = obj->data.ptr;
+    list_assert_pair(list);
+    return list;
+}
+
 void object_getter(object_t *self, const char *name, vm_t *vm) {
     type_t *type = self->type;
     bool ok = type->getter? type->getter(self, name, vm): false;
@@ -178,13 +188,11 @@ bool bool_getter(object_t *self, const char *name, vm_t *vm) {
     instruction_t instruction = FIRST_OP_INSTR + op;
     bool is_unop = instruction == INSTR_NOT;
 
-    bool i, j;
-    if (is_unop) {
-        i = self->data.i;
-    } else {
+    bool i = self->data.i;
+    bool j;
+    if (!is_unop) {
         object_t *other = vm_pop(vm);
-        i = object_to_bool(other);
-        j = self->data.i;
+        j = object_to_bool(other);
     }
 
     switch (instruction) {
@@ -255,13 +263,11 @@ bool int_getter(object_t *self, const char *name, vm_t *vm) {
         instruction_t instruction = FIRST_OP_INSTR + op;
         bool is_unop = instruction == INSTR_NEG || instruction == INSTR_NOT;
 
-        int i, j;
-        if (is_unop) {
-            i = self->data.i;
-        } else {
+        int i = self->data.i;
+        int j;
+        if (!is_unop) {
             object_t *other = vm_pop(vm);
-            i = object_to_int(other);
-            j = self->data.i;
+            j = object_to_int(other);
         }
 
         switch (instruction) {
@@ -311,7 +317,15 @@ object_t *object_create_str(const char *s) {
 
 void str_print(object_t *self) {
     const char *s = self->data.ptr;
-    printf("\"%s\"", s);
+    int len = strlen(s);
+    putc('"', stdout);
+    const char *s1 = s;
+    for (char c; c = *s; s++) {
+        if (c == '"') fputs("\\\"", stdout);
+        else if (c == '\n') fputs("\\n", stdout);
+        else putc(c, stdout);
+    }
+    putc('"', stdout);
 }
 
 const char *str_to_str(object_t *self) {
@@ -331,6 +345,9 @@ bool str_getter(object_t *self, const char *name, vm_t *vm) {
     const char *s = self->data.ptr;
     if (!strcmp(name, "write")) {
         fputs(s, stdout);
+    } else if (!strcmp(name, "writeline")) {
+        fputs(s, stdout);
+        putc('\n', stdout);
     } else if (!strcmp(name, "len")) {
         int len = strlen(s);
         vm_push(vm, vm_get_or_create_int(vm, len));
@@ -347,6 +364,16 @@ bool str_getter(object_t *self, const char *name, vm_t *vm) {
         }
         char c = s[i];
         vm_push(vm, vm_get_char_str(vm, c));
+    } else if (!strcmp(name, "+")) {
+        const char *s2 = object_to_str(vm_pop(vm));
+        int len = strlen(s) + strlen(s2);
+        char *s3 = malloc(len + 1);
+        if (!s3) {
+            fprintf(stderr, "Couldn't allocate string of size %i for str '+'\n", len);
+            exit(1);
+        }
+        strcat(strcpy(s3, s), s2);
+        vm_push(vm, vm_get_or_create_str(vm, s3));
     } else return false;
     return true;
 }
@@ -431,6 +458,13 @@ void list_reverse(list_t *list) {
     }
 }
 
+void list_assert_pair(list_t *list) {
+    if (list->len != 2) {
+        fprintf(stderr, "List of size %i isn't a pair\n", list->len);
+        exit(1);
+    }
+}
+
 object_t *object_create_list(list_t *list) {
     object_t *obj = object_create(&list_type);
     obj->data.ptr = list? list: list_create();
@@ -486,7 +520,10 @@ void list_print(object_t *self) {
 }
 
 bool list_type_getter(object_t *self, const char *name, vm_t *vm) {
-    if (!strcmp(name, "@")) {
+    if (!strcmp(name, "new")) {
+        list_t *list = list_create();
+        vm_push(vm, object_create_list(list));
+    } else if (!strcmp(name, "@")) {
         list_t *list;
         object_t *obj = vm_top(vm);
         if (obj->type == &list_type) {
@@ -521,6 +558,10 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
     list_t *list = self->data.ptr;
     if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, list->len));
+    } else if (!strcmp(name, ",")) {
+        object_t *obj = vm_pop(vm);
+        list_push(list, obj);
+        vm_push(vm, self);
     } else if (!strcmp(name, "__iter__")) {
         iterator_t *it = iterator_create(ITER_LIST, list->len,
             (iterator_data_t){ .list = list });
@@ -557,10 +598,7 @@ bool list_getter(object_t *self, const char *name, vm_t *vm) {
         vm_push(vm, vm_get_or_create_int(vm, list->len));
     } else if (!strcmp(name, "unpair")) {
         // the inverse of @pair
-        if (list->len != 2) {
-            fprintf(stderr, "Can't unpair list of size %i (!= 2)\n", list->len);
-            exit(1);
-        }
+        list_assert_pair(list);
         vm_push(vm, list->elems[0]);
         vm_push(vm, list->elems[1]);
     } else return false;
@@ -662,7 +700,10 @@ void dict_print(object_t *self) {
 }
 
 bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
-    if (!strcmp(name, "@")) {
+    if (!strcmp(name, "new")) {
+        dict_t *dict = dict_create();
+        vm_push(vm, object_create_dict(dict));
+    } else if (!strcmp(name, "@")) {
         dict_t *dict;
         object_t *obj = vm_top(vm);
         if (obj->type == &dict_type) {
@@ -672,15 +713,7 @@ bool dict_type_getter(object_t *self, const char *name, vm_t *vm) {
             object_t *obj_it = vm_iter(vm);
             object_t *next_obj;
             while (next_obj = object_next(obj_it, vm)) {
-                if (next_obj->type != &list_type) {
-                    fprintf(stderr, "Dict constructor expected iterable of pairs, but found a '%s'\n", next_obj->type->name);
-                    exit(1);
-                }
-                list_t *pair = next_obj->data.ptr;
-                if (pair->len != 2) {
-                    fprintf(stderr, "Dict constructor expected iterable of pairs, but found a list of size %i\n", pair->len);
-                    exit(1);
-                }
+                list_t *pair = object_to_pair(next_obj);
                 const char *name = object_to_str(pair->elems[0]);
                 dict_set(dict, name, pair->elems[1]);
             }
@@ -712,6 +745,11 @@ bool dict_getter(object_t *self, const char *name, vm_t *vm) {
     dict_t *dict = self->data.ptr;
     if (!strcmp(name, "len")) {
         vm_push(vm, vm_get_or_create_int(vm, dict->len));
+    } else if (!strcmp(name, ",")) {
+        list_t *pair = object_to_pair(vm_pop(vm));
+        const char *name = object_to_str(pair->elems[0]);
+        dict_set(dict, name, pair->elems[1]);
+        vm_push(vm, self);
     } else if (
         !strcmp(name, "__iter__") ||
         !strcmp(name, "keys") ||

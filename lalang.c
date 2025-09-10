@@ -47,7 +47,8 @@ int main(int n_args, char **args) {
         if (eval && !quiet) fputs(continuing_line? "... ": ">>> ", stdout);
         if (getline(&line, &line_size, stdin) < 0) {
             if (errno) {
-                fprintf(stderr, "Error getting line from stdin\n");
+                fprintf(stderr, "Error getting line from stdin: ");
+                perror(NULL);
                 exit(1);
             } else break; // EOF
         }

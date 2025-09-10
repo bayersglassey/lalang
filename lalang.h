@@ -17,6 +17,7 @@ typedef struct dict_item dict_item_t;
 typedef struct dict dict_t;
 typedef enum iteration iteration_t;
 typedef union iterator_data iterator_data_t;
+typedef struct custom_iterator custom_iterator_t;
 typedef struct iterator iterator_t;
 typedef union bytecode bytecode_t;
 typedef struct code code_t;
@@ -56,8 +57,11 @@ enum cmp_result {
     CMP_GT
 };
 
-char *read_file(const char *filename, bool binary);
+char *read_file(const char *filename, bool required);
 int get_index(int i, int len, const char *type_name);
+
+#define MAX(_x, _y) ((_x) > (_y)? (_x): (_y))
+#define MIN(_x, _y) ((_x) < (_y)? (_x): (_y))
 
 
 /****************
@@ -191,7 +195,8 @@ bool object_to_bool(object_t *self);
 int object_to_int(object_t *self);
 const char *object_to_str(object_t *self);
 cmp_result_t object_cmp(object_t *self, object_t *other, vm_t *vm);
-list_t *object_to_pair(object_t *obj);
+list_t *object_to_pair(object_t *self);
+char object_to_char(object_t *self);
 void object_getter(object_t *self, const char *name, vm_t *vm);
 void object_setter(object_t *self, const char *name, vm_t *vm);
 void object_print(object_t *self);
@@ -222,6 +227,7 @@ extern object_t static_false;
 * INT
 ****************/
 
+int int_op(int op, int i, int j);
 object_t *object_create_int(int i);
 
 extern type_t int_type;
@@ -298,17 +304,24 @@ enum iteration {
     ITER_DICT_KEYS,
     ITER_DICT_VALUES,
     ITER_DICT_ITEMS,
+    ITER_CUSTOM,
     N_ITERS
 };
 
 #define FIRST_DICT_ITER ITER_DICT_KEYS
 #define LAST_DICT_ITER ITER_DICT_ITEMS
 
+struct custom_iterator {
+    object_t *(*next)(iterator_t *it, vm_t *vm);
+    void *data;
+};
+
 union iterator_data {
     int range_start;
     list_t *list;
     dict_t *dict;
     const char *str;
+    custom_iterator_t custom;
 };
 
 struct iterator {
@@ -420,6 +433,7 @@ void vm_print_code(vm_t *vm, code_t *code);
 object_t *vm_iter(vm_t *vm);
 void vm_eval(vm_t *vm, code_t *code, dict_t *locals);
 void vm_include(vm_t *vm, const char *filename);
+void vm_eval_text(vm_t *vm, char *text);
 
 
 /****************

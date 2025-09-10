@@ -1,4 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 
-gcc -g -o lalang *.c
+gcc -rdynamic -g -o lalang *.c -ldl

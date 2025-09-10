@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
+
+#ifndef _NO_DLOPEN_
+#include <dlfcn.h>
+#endif
 
 #include "lalang.h"
 
@@ -136,14 +141,80 @@ void builtin_clear(vm_t *vm) {
     vm->stack_top = vm->stack - 1;
 }
 
-void builtin_include(vm_t *vm) {
+void builtin_readline(vm_t *vm) {
+    char *line = NULL;
+    size_t n = 0;
+    size_t got = getline(&line, &n, stdin);
+    if (!got) {
+        fprintf(stderr, "Error getting line from stdin: ");
+        perror(NULL);
+        exit(1);
+    }
+    vm_push(vm, vm_get_or_create_str(vm, line));
+}
+
+void builtin_readfile(vm_t *vm) {
     const char *filename = object_to_str(vm_pop(vm));
-    vm_include(vm, filename);
+    char *text = read_file(filename, false);
+    vm_push(vm, text? vm_get_or_create_str(vm, text): &static_null);
+}
+
+void builtin_eval(vm_t *vm) {
+    const char *const_text = object_to_str(vm_pop(vm));
+    char *text = strdup(const_text);
+    if (!text) {
+        fprintf(stderr, "Couldn't duplicate text of size %i for eval\n", (int)strlen(const_text));
+        exit(1);
+    }
+    vm_eval_text(vm, text);
+}
+
+void builtin_dlsym(vm_t *vm) {
+    const char *sym_name = object_to_str(vm_pop(vm));
+    const char *filename = object_to_str(vm_pop(vm));
+#ifdef _NO_DLOPEN_
+    fprintf(stderr, "Not compiled with dlopen!\n");
+    exit(1);
+#else
+    void *handle = dlopen(filename, RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
+    if (!handle) {
+        fprintf(stderr, "Couldn't open '%s': %s\n", filename, dlerror());
+        exit(1);
+    }
+
+    // https://linuxman7.org/linux/man-pages/man3/dlvsym.3.html:
+    //   In unusual cases (see NOTES) the value of the symbol could
+    //   actually be NULL.  Therefore, a NULL return from dlsym() need not
+    //   indicate an error.  The correct way to distinguish an error from a
+    //   symbol whose value is NULL is to call dlerror(3) to clear any old
+    //   error conditions, then call dlsym(), and then call dlerror(3)
+    //   again, saving its return value into a variable, and check whether
+    //   this saved value is not NULL.
+    dlerror();
+    void (*sym)(vm_t *) = dlsym(handle, sym_name);
+    const char *error = dlerror();
+    if (error) {
+        fprintf(stderr, "Couldn't find '%s' in '%s': %s\n", sym_name, filename, error);
+        exit(1);
+    }
+
+    if (!sym) {
+        fprintf(stderr, "Found '%s' in '%s', but it was NULL\n", sym_name, filename);
+        exit(1);
+    }
+    dlclose(handle);
+    sym(vm);
+#endif
 }
 
 void builtin_error(vm_t *vm) {
-    const char *msg = object_to_str(vm_pop(vm));
-    printf("ERROR: %s\n", msg);
+    object_t *obj = vm_pop(vm);
+    if (obj->type == &str_type) {
+        const char *s = obj->data.ptr;
+        printf("ERROR: %s\n", s);
+    } else {
+        printf("ERROR: <'%s' object at %p>\n", obj->type->name, obj);
+    }
     exit(1);
 }
 
@@ -236,11 +307,16 @@ object_t *vm_get_cached_str(vm_t *vm, const char *s) {
     return vm->str_cache->items[i].value;
 }
 
+// Only bother caching strings of this length or less
+#define MAX_CACHED_STR_LEN 16
+
 object_t *vm_get_or_create_str(vm_t *vm, const char *s) {
     // returns a cached str object, or a fresh (uncached) one
-    object_t *obj = dict_get(vm->str_cache, s);
-    if (obj) return obj;
-    else return object_create_str(s);
+    if (strlen(s) < MAX_CACHED_STR_LEN) {
+        object_t *obj = dict_get(vm->str_cache, s);
+        if (obj) return obj;
+    }
+    return object_create_str(s);
 }
 
 object_t *vm_get_char_str(vm_t *vm, char c) {
@@ -310,7 +386,10 @@ void vm_init(vm_t *vm) {
     vm_add_builtin(vm, "set", &builtin_set);
     vm_add_builtin(vm, "clear", &builtin_clear);
     vm_add_builtin(vm, "print_stack", &vm_print_stack);
-    vm_add_builtin(vm, "include", &builtin_include);
+    vm_add_builtin(vm, "readline", &builtin_readline);
+    vm_add_builtin(vm, "readfile", &builtin_readfile);
+    vm_add_builtin(vm, "eval", &builtin_eval);
+    vm_add_builtin(vm, "dlsym", &builtin_dlsym);
     vm_add_builtin(vm, "error", &builtin_error);
     vm_add_builtin(vm, "class", &builtin_class);
 
@@ -515,12 +594,23 @@ void vm_eval(vm_t *vm, code_t *code, dict_t *locals) {
 }
 
 void vm_include(vm_t *vm, const char *filename) {
-    char *text = read_file(filename, false);
+    char *text = read_file(filename, true);
     compiler_t *compiler = compiler_create(vm);
     compiler_compile(compiler, text);
     code_t *code = compiler_pop_runnable_code(compiler);
     if (!code) {
         fprintf(stderr, "Code included from '%s' had an unterminated block\n", filename);
+        exit(1);
+    }
+    vm_eval(vm, code, NULL);
+}
+
+void vm_eval_text(vm_t *vm, char *text) {
+    compiler_t *compiler = compiler_create(vm);
+    compiler_compile(compiler, text);
+    code_t *code = compiler_pop_runnable_code(compiler);
+    if (!code) {
+        fprintf(stderr, "Code evaluated from text had an unterminated block\n");
         exit(1);
     }
     vm_eval(vm, code, NULL);

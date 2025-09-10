@@ -15,19 +15,32 @@
     ...can we add some kind of fancy way to do comprehensions?..
     ...yeah, I think we can with INSTR_COMMA.
     No generator expressions, of course.
-[ ] cli options
 [X] locals
 [X] parentheses, i.e. stack assertions
 [X] single-character string cache, "abc" .get should be "a", etc
-[ ] unit tests
 [X] modules
-[ ] C extensions
+[X] C extensions
     ...see extensions/nlist.c!.. need to compile it, and implement a @cimport builtin
-[ ] break, continue, return?..
-[ ] use from Python
+[X] Instead of @import requiring a filename, accept a "module name"
+    ...and either load from .so file or .lala file
 [X] support negative list/str indexes
 [X] list/str slices (just reuse ITER_LIST, ITER_STR)
+[X] add builtins: readfile, readline
+[ ] unit tests
+[ ] cli options
+[ ] break, continue, return?..
+[ ] use from Python
+[ ] implement list/dict/nlist comparisons
+    ...and uhhhh... do we want to drop the whole cmp_t thing and just have
+    the bool ops behave the same way as the int ops?..
+    Otherwise, we can't have nlist do such fancy things as numpy...
 [ ] bit shift operators
-[ ] add builtins: readfile, readline
-[ ] string methods: split, join
+[ ] string methods:
+    [ ] split
+    [ ] strip
+    [ ] join
+    [X] replace
+    [X] has
+[ ] replace the various kinds of ITER_ with just ITER_CUSTOM's mechanism?..
+    i.e. we just need a "next" function and data pointer?..
 [ ] add a README

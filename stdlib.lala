@@ -146,6 +146,8 @@
 ] =$join
 
 
+# E.g. if COND1 then THEN1 elif COND2 then THEN2 else ELSE end
+# ...becomes: { COND1 } { THEN1 } { COND2 } { THEN2 } { ELSE } 2 @cond
 [
     =x
     x @typeof =T
@@ -184,3 +186,16 @@
     # We need something like a @getters function, which unlike .__getters__
     # (which can fail), always returns a dict?..
 ] =$repr
+
+
+# E.g. "mymodule" @include looks for "mymodule.lala" or "mymodule.so"
+[
+    =name
+    ( "." "/" name .replace ".lala" + ) @readfile =code
+    code null != {
+        code @eval
+    } {
+        # NOTE: currently only checks for .so files in current directory...
+        ( "./" name + ".so" + ) ( name "_init" + ) @dlsym
+    } @ifelse
+] =$include

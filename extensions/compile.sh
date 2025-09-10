@@ -1,4 +1,4 @@
 #!/bin/bash
 set euo -pipefail
 
-gcc -fpic -o nlist.so nlist.c
+gcc -shared -fPIC -o nlist.so extensions/nlist.c -ldl

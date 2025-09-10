@@ -2,30 +2,59 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 
 #include "lalang.h"
 
 
-// TODO: dynamically allocate this!
-#define FILE_BUFFER_SIZE (1024 * 1024)
-char file_buffer[FILE_BUFFER_SIZE];
+char *read_file(const char *filename, bool required) {
+    // Reads a file's contents, either:
+    //   * returning a string
+    //   * returning NULL if !required and file didn't exist
+    //   * exiting if there was an error
 
-char *read_file(const char *filename, bool binary) {
-    FILE *file = fopen(filename, binary? "rb": "r");
+    // Open file
+    FILE *file = fopen(filename, "r");
     if (!file) {
-        fprintf(stderr, "Failed to open file '%s' (binary=%s): ", filename, binary? "true": "false");
+        if (!required && errno == ENOENT) {
+            // No such file
+            return NULL;
+        } else {
+            // Something went horribly wrong
+            fprintf(stderr, "Could not open file '%s': ", filename);
+            perror(NULL);
+            exit(1);
+        }
+    }
+
+    // Figure out how big a buffer we need to allocate
+    long file_size;
+    fseek(file, 0, SEEK_END);
+    file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    // Allocate buffer
+    char *buffer = malloc(file_size + 1);
+    if (!buffer) {
+        fprintf(stderr, "Could not allocate buffer for file '%s' (%li bytes)\n",
+            filename, file_size);
+        exit(1);
+    }
+
+    // Fill buffer
+    size_t got = fread(buffer, 1, file_size, file);
+    if(got < file_size){
+        fprintf(stderr,
+            "Could not read (all of) file '%s' (%li bytes): ",
+            filename, file_size);
         perror(NULL);
         exit(1);
     }
-    size_t n = fread(file_buffer, 1, FILE_BUFFER_SIZE - 1, file);
-    if (ferror(file)) {
-        fprintf(stderr, "Failed to read from file '%s' (binary=%s): ", filename, binary? "true": "false");
-        perror(NULL);
-        exit(1);
-    };
-    file_buffer[n] = '\0';
+    buffer[file_size] = '\0';
+
+    // Close file & return!
     fclose(file);
-    return file_buffer;
+    return buffer;
 }
 
 int get_index(int i, int len, const char *type_name) {

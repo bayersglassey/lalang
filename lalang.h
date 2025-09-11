@@ -462,6 +462,8 @@ struct compiler_frame {
 struct compiler {
     vm_t *vm;
     const char *filename;
+    int row;
+    int col;
     compiler_frame_t frames[COMPILER_STACK_SIZE];
     compiler_frame_t *frame;
     compiler_frame_t *last_func_frame;

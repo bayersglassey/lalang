@@ -16,10 +16,17 @@ compiler_t *compiler_create(vm_t *vm, const char *filename) {
         fprintf(stderr, "Failed to allocate memory for compiler\n");
         exit(1);
     }
+    compiler->row = 0;
+    compiler->col = 0;
     compiler->vm = vm;
     compiler->filename = filename;
     compiler->frame = compiler->frames - 1;
     return compiler;
+}
+
+void compiler_print_position(compiler_t *compiler) {
+    fprintf(stderr, "%s: row %i: col %i: ",
+        compiler->filename, compiler->row + 1, compiler->col + 1);
 }
 
 static compiler_frame_t *compiler_push_frame(compiler_t *compiler, bool is_func) {
@@ -52,6 +59,7 @@ static instruction_t compiler_process_global_ref(
 
 static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
     if (compiler->frame < compiler->frames) {
+        compiler_print_position(compiler);
         fprintf(stderr, "Tried to pop from an empty frame stack\n");
         exit(1);
     }
@@ -123,7 +131,7 @@ static char *get_token(char *text, int *token_len_ptr) {
     return token;
 }
 
-static const char *parse_string_literal(const char *token, int token_len) {
+static const char *parse_string_literal(compiler_t *compiler, const char *token, int token_len) {
     // NOTE: assumes token starts & ends with '"'.
 
     // Allocate at least enough to hold token, without the '"'s, plus a '\0'.
@@ -131,6 +139,7 @@ static const char *parse_string_literal(const char *token, int token_len) {
     // escaping backslashes in token.
     char *parsed = malloc(token_len - 2 + 1);
     if (!parsed) {
+        compiler_print_position(compiler);
         fprintf(stderr, "Couldn't allocate string for token: [%s]\n", token);
         exit(1);
     }
@@ -152,14 +161,16 @@ static bool is_ascii_letter(char c) {
     return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
 }
 
-static const char *parse_name(const char *token) {
+static const char *parse_name(compiler_t *compiler, const char *token) {
 
     // First, validate that the token looks like a name
     char first_c = *token;
     if (first_c == '\0') {
+        compiler_print_position(compiler);
         fprintf(stderr, "Expected name, got empty token!\n");
         exit(1);
     } else if (first_c != '_' && !is_ascii_letter(first_c)) {
+        compiler_print_position(compiler);
         fprintf(stderr, "Expected name, got: [%s]\n", token);
         exit(1);
     } else {
@@ -167,6 +178,7 @@ static const char *parse_name(const char *token) {
         char c;
         while (c = *s++) {
             if (c != '_' && !is_ascii_letter(c) && !(c >= '0' && c <= '9')) {
+                compiler_print_position(compiler);
                 fprintf(stderr, "Expected name, got: [%s]\n", token);
                 exit(1);
             }
@@ -175,6 +187,7 @@ static const char *parse_name(const char *token) {
 
     const char *parsed = strdup(token);
     if (!parsed) {
+        compiler_print_position(compiler);
         fprintf(stderr, "Couldn't allocate name for token: [%s]\n", token);
         exit(1);
     }
@@ -188,7 +201,7 @@ int parse_operator(const char *token) {
     return -1;
 }
 
-static void compiler_frame_push_local(compiler_frame_t *frame, int cached_str_i) {
+static void compiler_frame_push_local(compiler_t *compiler, compiler_frame_t *frame, int cached_str_i) {
     // mark the indicated variable name as being local to frame->code
     // NOTE: if we arrive here, frame->code->is_func must be true
     for (int i = 0; i < frame->n_locals; i++) {
@@ -197,6 +210,7 @@ static void compiler_frame_push_local(compiler_frame_t *frame, int cached_str_i)
     int new_n_locals = frame->n_locals + 1;
     int *new_locals = realloc(frame->locals, new_n_locals * sizeof *new_locals);
     if (!new_locals) {
+        compiler_print_position(compiler);
         fprintf(stderr, "Failed to allocate compiler frame locals\n");
         exit(1);
     }
@@ -213,10 +227,20 @@ void compiler_compile(compiler_t *compiler, char *text) {
 
     vm_t *vm = compiler->vm;
 
+    char *prev_token = text; // used to update row & col
     char *token;
     int token_len;
     while (token = get_token(text, &token_len)) {
+        // Move text forward past the token we just got
+        for (char *s = prev_token; s < token; s++) {
+            char c = *s;
+            if (c == '\n') {
+                compiler->row++;
+                compiler->col = 0;
+            } else compiler->col++;
+        }
         text = token + token_len;
+        prev_token = token;
 
         // Save the next char immediately following the token within text,
         // and replace it with '\0', so we can pass token into functions which
@@ -243,6 +267,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
             for (int j = neg + 1; j < token_len; j++) {
                 char c = token[j];
                 if (c < '0' || c > '9') {
+                    compiler_print_position(compiler);
                     fprintf(stderr, "Integer literal contains non-digit at position %i: [%s]\n", j, token);
                     exit(1);
                 }
@@ -253,10 +278,11 @@ void compiler_compile(compiler_t *compiler, char *text) {
         } else if (first_c == '"') {
             // str literal
             if (token_len < 2 || token[token_len - 1] != '"') {
+                compiler_print_position(compiler);
                 fprintf(stderr, "Unterminated string literal: [%s]\n", token);
                 exit(1);
             }
-            const char *s = parse_string_literal(token, token_len);
+            const char *s = parse_string_literal(compiler, token, token_len);
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_LOAD_STR);
             code_push_i(code, i);
@@ -267,13 +293,13 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_instruction(code, FIRST_OP_INSTR + op);
         } else if (first_c == '.') {
             // getter
-            const char *s = parse_name(token + 1);
+            const char *s = parse_name(compiler, token + 1);
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_GETTER);
             code_push_i(code, i);
         } else if (first_c == '=' && token[1] == '.') {
             // setter
-            const char *s = parse_name(token + 2);
+            const char *s = parse_name(compiler, token + 2);
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_SETTER);
             code_push_i(code, i);
@@ -281,18 +307,19 @@ void compiler_compile(compiler_t *compiler, char *text) {
             // mark variable as local
             // TODO: get rid of this... the syntax is gross
             // and like, how do we declare a global?.. "''"?..
-            const char *s = parse_name(token + 1);
+            const char *s = parse_name(compiler, token + 1);
             int i = vm_get_cached_str_i(vm, s);
             compiler_frame_t *last_func_frame = compiler->last_func_frame;
             if (!last_func_frame) {
+                compiler_print_position(compiler);
                 fprintf(stderr, "Invalid outside of function scope: [%s]\n", token);
                 exit(1);
             }
-            compiler_frame_push_local(last_func_frame, i);
+            compiler_frame_push_local(compiler, last_func_frame, i);
         } else if (first_c == '=') {
             // store global/local
             bool rename_func = token[1] == '@';
-            const char *s = parse_name(token + (rename_func? 2: 1));
+            const char *s = parse_name(compiler, token + (rename_func? 2: 1));
             int i = vm_get_cached_str_i(vm, s);
             if (rename_func) {
                 code_push_instruction(code, INSTR_RENAME_FUNC);
@@ -300,7 +327,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
             }
             compiler_frame_t *last_func_frame = compiler->last_func_frame;
             if (last_func_frame) {
-                compiler_frame_push_local(last_func_frame, i);
+                compiler_frame_push_local(compiler, last_func_frame, i);
                 code_push_instruction(code, INSTR_STORE_LOCAL);
             } else {
                 code_push_instruction(code, INSTR_STORE_GLOBAL);
@@ -308,7 +335,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_i(code, i);
         } else if (first_c == '@' && token[1] != '\0') {
             // call global/local
-            const char *s = parse_name(token + 1);
+            const char *s = parse_name(compiler, token + 1);
             int i = vm_get_cached_str_i(vm, s);
             instruction_t instruction = compiler_process_global_ref(compiler,
                 INSTR_CALL_GLOBAL, i);
@@ -316,7 +343,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_i(code, i);
         } else if (first_c == '$') {
             // rename func
-            const char *s = parse_name(token + 1);
+            const char *s = parse_name(compiler, token + 1);
             int i = vm_get_cached_str_i(vm, s);
             code_push_instruction(code, INSTR_RENAME_FUNC);
             code_push_i(code, i);
@@ -336,12 +363,14 @@ void compiler_compile(compiler_t *compiler, char *text) {
         } else if (!strcmp(token, "}") || !strcmp(token, "]")) {
             // end code block
             if (compiler->frame <= compiler->frames) {
+                compiler_print_position(compiler);
                 fprintf(stderr, "Unterminated block\n");
                 exit(1);
             }
             bool was_func = compiler->frame->code->is_func;
             bool is_func = token[0] == ']';
             if (was_func != is_func) {
+                compiler_print_position(compiler);
                 fprintf(stderr, "Expected '%c', got '%c'\n",
                     was_func? ']': '}',
                     is_func? ']': '}');
@@ -356,7 +385,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
             code_push_i(code, i);
         } else {
             // load global/local
-            const char *s = parse_name(token);
+            const char *s = parse_name(compiler, token);
             int i = vm_get_cached_str_i(vm, s);
             instruction_t instruction = compiler_process_global_ref(compiler,
                 INSTR_LOAD_GLOBAL, i);

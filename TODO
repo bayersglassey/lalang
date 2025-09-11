@@ -20,7 +20,7 @@
 [X] single-character string cache, "abc" .get should be "a", etc
 [X] modules
 [X] C extensions
-    ...see extensions/nlist.c!.. need to compile it, and implement a @cimport builtin
+    ...see extensions/nlist.c!.. need to compile it, and implement an @include builtin
 [X] Instead of @import requiring a filename, accept a "module name"
     ...and either load from .so file or .lala file
 [X] support negative list/str indexes
@@ -44,6 +44,6 @@
 [ ] implement list '+', and something like '*' (maybe .times?)
 [ ] replace the various kinds of ITER_ with just ITER_CUSTOM's mechanism?..
     i.e. we just need a "next" function and data pointer?..
-[ ] add a README
+[X] add a README
 [X] implement @vm, which returns an object which can be used e.g. to set
     debug flags dynamically

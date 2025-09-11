@@ -191,6 +191,6 @@ type_t nlist_type = {
 };
 
 void nlist_init(vm_t *vm) {
-    // NOTE: this function is called by @cimport
+    // NOTE: this function is called by @include
     dict_set(vm->globals, "nlist", object_create_type(&nlist_type));
 }

@@ -64,7 +64,7 @@ More iterators! Ranges! Maps! Enumerations! Zippers! Destructuring!
 >>> ( ( 0 10 @range ) double @map ) @list @print
 [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
 >>> "Yes!" @enumerate @list @print
-[["Y", 0], ["e", 1], ["s", 2], ["!", 3]]
+[[0, "Y"], [1, "e"], [2, "s"], [3, "!"]]
 >>> "Yes!" "No!" @zip { .unpair + } @map @list @join
 "YNeos!"
 ```

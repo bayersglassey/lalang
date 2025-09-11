@@ -22,7 +22,7 @@
 ] $__next__ zip .set_getter
 
 
-# "abc" @enumerate @list -> [["a", 0], ["b", 1], ["c", 2]]
+# "abc" @enumerate @list -> [[0, "a"], [1, "b"], [2, "c"]]
 "enumerate" @class =enumerate
 [
     =self
@@ -34,7 +34,7 @@
 [
     =self
     self .it @next {
-        self .i @pair =next
+        self .i @swap @pair =next
         self .i 1 + self =.i
         next true
     } { false } @ifelse

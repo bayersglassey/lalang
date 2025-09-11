@@ -1024,6 +1024,10 @@ bool func_getter(object_t *self, const char *name, vm_t *vm) {
             dict_t *locals = func->locals? dict_copy(func->locals): NULL;
             vm_eval(vm, func->u.code, locals);
         }
+    } else if (!strcmp(name, "filename")) {
+        vm_push(vm, func->is_c_code?
+            &static_null:
+            vm_get_or_create_str(vm, func->u.code->filename));
     } else if (!strcmp(name, "to_dict")) {
         // run the function, and return its locals as a dict...
         // kinda hacky, but super useful for metaprogramming

@@ -657,7 +657,7 @@ void vm_eval(vm_t *vm, code_t *code, dict_t *locals) {
 
 void vm_include(vm_t *vm, const char *filename) {
     char *text = read_file(filename, true);
-    compiler_t *compiler = compiler_create(vm);
+    compiler_t *compiler = compiler_create(vm, filename);
     compiler_compile(compiler, text);
     code_t *code = compiler_pop_runnable_code(compiler);
     if (!code) {
@@ -668,7 +668,7 @@ void vm_include(vm_t *vm, const char *filename) {
 }
 
 void vm_eval_text(vm_t *vm, char *text) {
-    compiler_t *compiler = compiler_create(vm);
+    compiler_t *compiler = compiler_create(vm, "<text>");
     compiler_compile(compiler, text);
     code_t *code = compiler_pop_runnable_code(compiler);
     if (!code) {

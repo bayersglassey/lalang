@@ -10,20 +10,21 @@
 * COMPILER
 ****************/
 
-compiler_t *compiler_create(vm_t *vm) {
+compiler_t *compiler_create(vm_t *vm, const char *filename) {
     compiler_t *compiler = calloc(1, sizeof *compiler);
     if (!compiler) {
         fprintf(stderr, "Failed to allocate memory for compiler\n");
         exit(1);
     }
     compiler->vm = vm;
+    compiler->filename = filename;
     compiler->frame = compiler->frames - 1;
     return compiler;
 }
 
 static compiler_frame_t *compiler_push_frame(compiler_t *compiler, bool is_func) {
     compiler_frame_t *frame = ++compiler->frame;
-    frame->code = code_create(is_func);
+    frame->code = code_create(compiler->filename, is_func);
     frame->n_locals = 0;
     frame->locals = NULL;
     if (is_func) compiler->last_func_frame = frame;

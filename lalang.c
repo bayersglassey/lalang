@@ -29,7 +29,7 @@ int main(int n_args, char **args) {
     bool print_eval = getenv_bool("PRINT_EVAL", false);
 
     vm_t *vm = vm_create();
-    compiler_t *compiler = compiler_create(vm);
+    compiler_t *compiler = compiler_create(vm, "<stdin>");
 
     // NOTE: include stdlib *before* turning on any debug print stuff!..
     // we can debug the stdlib itself separately

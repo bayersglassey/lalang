@@ -106,12 +106,13 @@ int instruction_args(instruction_t instruction) {
 
 #define CODE_SIZE 1024
 
-code_t *code_create(bool is_func) {
+code_t *code_create(const char *filename, bool is_func) {
     code_t *code = calloc(1, sizeof *code);
     if (!code) {
         fprintf(stderr, "Failed to allocate code\n");
         exit(1);
     }
+    code->filename = filename;
     code->is_func = is_func;
     return code;
 }

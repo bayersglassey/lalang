@@ -139,12 +139,13 @@ union bytecode {
 };
 
 struct code {
+    const char *filename;
     bool is_func; // are we a function [...] or a code block {...}?
     int len;
     bytecode_t *bytecodes;
 };
 
-code_t *code_create(bool is_func);
+code_t *code_create(const char *filename, bool is_func);
 code_t *code_push_instruction(code_t *code, instruction_t instruction);
 code_t *code_push_i(code_t *code, int i);
 
@@ -460,12 +461,13 @@ struct compiler_frame {
 
 struct compiler {
     vm_t *vm;
+    const char *filename;
     compiler_frame_t frames[COMPILER_STACK_SIZE];
     compiler_frame_t *frame;
     compiler_frame_t *last_func_frame;
 };
 
-compiler_t *compiler_create(vm_t *vm);
+compiler_t *compiler_create(vm_t *vm, const char *filename);
 int parse_operator(const char *token);
 void compiler_compile(compiler_t *compiler, char *text);
 code_t *compiler_pop_runnable_code(compiler_t *compiler);

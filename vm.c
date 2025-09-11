@@ -506,12 +506,14 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
         printf(" %i", code->bytecodes[++i].i);
     } else if (instruction == INSTR_LOAD_STR) {
         int j = code->bytecodes[++i].i;
-        printf(" \"%s\"", vm->str_cache->items[j].name);
+        putc(' ', stdout);
+        print_string_quoted(vm->str_cache->items[j].name);
     } else if (instruction == INSTR_LOAD_FUNC) {
         printf(" %i", code->bytecodes[++i].i);
     } else if (
         instruction == INSTR_GETTER || instruction == INSTR_SETTER ||
-        instruction >= FIRST_GLOBAL_INSTR && instruction <= LAST_LOCAL_INSTR
+        instruction >= FIRST_GLOBAL_INSTR && instruction <= LAST_LOCAL_INSTR ||
+        instruction == INSTR_RENAME_FUNC
     ) {
         int j = code->bytecodes[++i].i;
         printf(" %s", vm->str_cache->items[j].name);

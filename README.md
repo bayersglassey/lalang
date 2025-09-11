@@ -9,7 +9,7 @@ to make a throwaway file or directory.
 
 ## Motivational examples
 
-Basic math and functions! I hope you like reverse Polish notation!
+Basic math and functions! I hope you like [reverse Polish notation](https://en.wikipedia.org/wiki/Reverse_Polish_notation)!
 
 ```
 >>> 1 2 10
@@ -46,7 +46,7 @@ Lists and dictionaries!
 2
 ```
 
-Strings and iterators!
+Strings! Slices! Iterators!
 
 ```
 >>> "hello!" @sorted @join @print
@@ -58,16 +58,11 @@ Strings and iterators!
 ["l", "o", " ", "w", "o"]
 ```
 
-More iterators! Maps! Enumerations! Zippers!
+More iterators! Ranges! Maps! Enumerations! Zippers! Destructuring!
 
 ```
 >>> ( ( 0 10 @range ) double @map ) @list @print
 [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
->>> 3 8 "Hello world!" .slice =s
->>> s
-<str iterator at 0x5682b77d2e10>
->>> @list @print
-["l", "o", " ", "w", "o"]
 >>> "Yes!" @enumerate @list @print
 [["Y", 0], ["e", 1], ["s", 2], ["!", 3]]
 >>> "Yes!" "No!" @zip { .unpair + } @map @list @join
@@ -77,23 +72,30 @@ More iterators! Maps! Enumerations! Zippers!
 Classes! They work pretty similar to Python, everybody loves Python!
 
 ```
+>>> # Create a new class
 >>> "Tree" @class =Tree
+>>>
+>>> # Implement the "__init__" method
 >>> [
 ...     =self
 ...     self =.tag
 ...     list .new self =.children
 ...     self
 ... ] $__init__ Tree .set_getter
+>>>
+>>> # Implement the "__print__" method
 >>> [
 ...     =self
 ...     self .tag .write "(" .write
 ...     true =first
 ...     {
-...         first { false =first } { " " .write } @ifelse
+...         first { false =first } { ", " .write } @ifelse
 ...         @print_inline
 ...     } self .children @for
 ...     ")" .write
 ... ] $__print__ Tree .set_getter
+>>>
+>>> # Implement the "," operator
 >>> [ =self self .children .push self ] "," Tree .__getters__ .set
 >>> 
 >>> 
@@ -106,7 +108,7 @@ Classes! They work pretty similar to Python, everybody loves Python!
 >>> =tree
 >>> 
 >>> tree @print
-A(1(i() ii()) 2())
+A(1(i(), ii()), 2())
 ```
 
 
@@ -155,6 +157,243 @@ That's pretty much it!
 
 Fun fact, we do no memory management! Once something's allocated, it's around forever!
 Good thing we cache small integers and strings, eh...
+
+
+## A look at the Bytecode
+
+Let's look at how a small program is tokenized, parsed, and evaluated:
+
+```
+$ echo '{ 2 * } =@f 5 @f' | QUIET=1 PRINT_TOKENS=1 ./lalang
+GOT TOKEN: [{]
+GOT TOKEN: [2]
+GOT TOKEN: [*]
+GOT TOKEN: [}]
+GOT TOKEN: [=@f]
+GOT TOKEN: [5]
+GOT TOKEN: [@f]
+
+$ echo '{ 2 * } =@f 5 @f' | QUIET=1 PRINT_CODE=1 ./lalang
+=== PARSED CODE:
+LOAD_INT 2
+MUL
+=== END CODE
+=== PARSED RUNNABLE CODE:
+LOAD_FUNC 68
+RENAME_FUNC f
+STORE_GLOBAL f
+LOAD_INT 5
+CALL_GLOBAL f
+=== END CODE
+
+$ echo '{ 2 * } =@f 5 @f' | QUIET=1 PRINT_EVAL=1 ./lalang
+LOAD_FUNC 68
+RENAME_FUNC f
+STORE_GLOBAL f
+LOAD_INT 5
+CALL_GLOBAL f
+LOAD_INT 2
+MUL
+```
+
+The instruction set is defined as a C enum, and in the bytecode, every "byte" (errr,
+every int... I guess it's technically intcode) is either an instruction, or an integer
+argument to the previous instruction:
+
+```
+$ grep -A3 "enum instruction {" lalang.h
+enum instruction {
+    INSTR_LOAD_INT,
+    INSTR_LOAD_STR,
+    INSTR_LOAD_FUNC,
+
+$ grep -A3 "union bytecode {" lalang.h
+union bytecode {
+    instruction_t instruction;
+    int i;
+};
+```
+
+When an instruction takes an integer argument, it's generally used as an index into
+one of the "caches" living on the VM:
+
+```
+$ grep cache lalang.h
+    object_t *int_cache[VM_INT_CACHE_SIZE];
+    dict_t *str_cache;
+    object_t *char_cache[256];
+    list_t *code_cache;
+int vm_get_cached_str_i(vm_t *vm, const char *s);
+object_t *vm_get_cached_str(vm_t *vm, const char *s);
+    int *locals; // indexes into vm->str_cache indicating local variable names
+```
+
+...so for instance, when parsing a string literal, it's added to `vm->str_cache`,
+and a LOAD_STR instruction is appended to the code, followed by the string's index
+in the cache.
+The same principle applies when parsing a codeblock or function literal, i.e. `{ ... }`
+or `[ ... ]`: an entry is added to `vm->code_cache`, and a LOAD_FUNC instruction and
+index are appended to the parent code.
+
+
+## Implementation of Classes
+
+We've seen how types can be implemented in C.
+But how about classes, i.e. user-defined types?.. e.g.
+
+```
+>>> "A" @class =A
+>>> A @print
+<type 'A'>
+>>> @A =a
+>>> a @print
+<'A' object at 0x5d2b0456d620>
+>>> 3 a =.x
+>>> a .x
+3
+```
+
+We can define methods, too (but they're called "getters" and "setters"):
+
+```
+>>> [
+...     =.message
+...     "Updated message." .writeline
+... ] $message A .add_setter
+>>> [ .message .writeline ] $greet A .add_getter
+>>> "Hello!" a =.message
+Updated message.
+>>> a .greet
+Hello!
+```
+
+It may be useful to see the bytecode involved (note how `=.x` and `.x` correspond to `SETTER x`
+and `GETTER x`):
+
+```
+$ echo '"A" @class @ =a 3 a =.x a .x @print' | QUIET=1 PRINT_EVAL=1 ./lalang
+LOAD_STR "A"
+CALL_GLOBAL class
+CALL
+STORE_GLOBAL a
+LOAD_INT 3
+LOAD_GLOBAL a
+SETTER x
+LOAD_GLOBAL a
+GETTER x
+CALL_GLOBAL print
+3
+```
+
+Well, we know that all types are just `type_t` objects at the C level.
+So, clearly the built-in `@class` function is dynamically allocating `type_t` objects, right?..
+And attributes, getters, and setters are presumably stored in `dict_t` objects...
+But we need a C struct to hold those. Enter `cls_t`:
+
+```
+$ grep -A13 "struct cls {" lalang.h
+struct cls {
+    vm_t *vm;
+    type_t *type;
+
+    dict_t *class_attrs;
+
+    // similar to Python's classmethods
+    dict_t *class_getters;
+    dict_t *class_setters;
+
+    // similar to Python's methods/properties
+    dict_t *getters;
+    dict_t *setters;
+};
+```
+
+So now, when `@class` is called, it just needs to create a `cls_t`, and a `type_t`,
+and stick them in an `object_t` of type `type`, and push that onto the VM's stack!..
+
+```
+$ grep -A3 "void builtin_class" vm.c
+void builtin_class(vm_t *vm) {
+    const char *name = object_to_str(vm_pop(vm));
+    vm_push(vm, object_create_cls(name, vm));
+}
+
+$ grep -A14 "object_create_cls" objects.c
+object_t *object_create_cls(const char *name, vm_t *vm) {
+    cls_t *cls = calloc(1, sizeof *cls);
+    if (!cls) {
+        fprintf(stderr, "Failed to allocate class '%s'\n", name);
+        exit(1);
+    }
+    cls->type = type_create_cls(name, cls);
+    cls->vm = vm;
+    cls->class_attrs = dict_create();
+    cls->class_getters = dict_create();
+    cls->class_setters = dict_create();
+    cls->getters = dict_create();
+    cls->setters = dict_create();
+    return object_create_type(cls->type);
+}
+```
+
+What function pointers does the dynamically allocated `type_t` use?..
+That is, how does it implement the C interface used by the VM when evaluating
+bytecode instructions?..
+In fact, it uses C functions with a `cls_` prefix, like `cls_print` and `cls_getter`:
+
+```
+$ grep -A15 "type_t \*type_create_cls" objects.c
+type_t *type_create_cls(const char *name, cls_t *cls) {
+    type_t *type = calloc(1, sizeof *type);
+    if (!type) {
+        fprintf(stderr, "Failed to allocate class type '%s'\n", name);
+        exit(1);
+    }
+    type->name = name;
+    type->data = cls;
+    type->print = cls_print;
+    type->cmp = cls_cmp;
+    type->type_getter = cls_type_getter;
+    type->type_setter = cls_type_setter;
+    type->getter = cls_getter;
+    type->setter = cls_setter;
+    return type;
+}
+```
+
+And what does e.g. `cls_getter` do?.. that is, what is the logic for `obj .x`
+where `obj` is a class instance?..
+Or rather, what is the behaviour of the bytecode `GETTER x`?..
+
+```
+$ grep -A19 "bool cls_getter" objects.c
+bool cls_getter(object_t *self, const char *name, vm_t *vm) {
+    // NOTE: self is a class instance
+    type_t *type = self->type;
+    cls_t *cls = type->data;
+    if (!strcmp(name, "__dict__")) {
+        vm_push(vm, self->data.ptr);
+    } else {
+        // lookup name in instance attrs
+        object_t *obj = dict_get(self->data.ptr, name);
+        if (obj) vm_push(vm, obj);
+        else {
+            // lookup name in instance getters
+            object_t *getter_obj = dict_get(cls->getters, name);
+            if (getter_obj) {
+                vm_push(vm, self);
+                object_getter(getter_obj, "@", vm);
+            } else {
+                // lookup name in class attrs
+                object_t *obj = dict_get(cls->class_attrs, name);
+                if (obj) vm_push(vm, obj);
+```
+
+...etc.
+Long story short, `obj .x` will try the following:
+* look for "x" in `self->data.ptr` (the instance's attributes)
+* look for "x" in `cls->getters`
+* look for "x" in `cls->class_attrs`
 
 
 ## C extensions
@@ -227,3 +466,5 @@ nlist([0, 5, 10, 15, 20, 25, 30, 35, 40, 45])
 >>> ( 0 10 @range @nlist ) ( 10 20 @range ) + @print
 nlist([10, 12, 14, 16, 18, 20, 22, 24, 26, 28])
 ```
+
+Next up: we fight Python & numpy for dominance in the field of data science programming.

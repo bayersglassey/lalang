@@ -328,15 +328,7 @@ object_t *object_create_str(const char *s) {
 
 void str_print(object_t *self) {
     const char *s = self->data.ptr;
-    int len = strlen(s);
-    putc('"', stdout);
-    const char *s1 = s;
-    for (char c; c = *s; s++) {
-        if (c == '"') fputs("\\\"", stdout);
-        else if (c == '\n') fputs("\\n", stdout);
-        else putc(c, stdout);
-    }
-    putc('"', stdout);
+    print_string_quoted(s);
 }
 
 const char *str_to_str(object_t *self) {

@@ -7,6 +7,19 @@
 #include "lalang.h"
 
 
+void print_string_quoted(const char *s) {
+    int len = strlen(s);
+    putc('"', stdout);
+    const char *s1 = s;
+    for (char c; c = *s; s++) {
+        if (c == '"') fputs("\\\"", stdout);
+        else if (c == '\n') fputs("\\n", stdout);
+        else putc(c, stdout);
+    }
+    putc('"', stdout);
+}
+
+
 char *read_file(const char *filename, bool required) {
     // Reads a file's contents, either:
     //   * returning a string
@@ -56,6 +69,7 @@ char *read_file(const char *filename, bool required) {
     fclose(file);
     return buffer;
 }
+
 
 int get_index(int i, int len, const char *type_name) {
     if (i < 0) {

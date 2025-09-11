@@ -57,6 +57,7 @@ enum cmp_result {
     CMP_GT
 };
 
+void print_string_quoted(const char *s);
 char *read_file(const char *filename, bool required);
 int get_index(int i, int len, const char *type_name);
 

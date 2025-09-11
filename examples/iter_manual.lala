@@ -23,7 +23,7 @@
         [ =self self .i self .data .get_key ] self =.get
     } @if
     self .len null == { data .__iter__ } { self } @ifelse
-] $__init__ iter .add_getter
+] $__init__ iter .set_getter
 [
     =self
     self .i self .len >=
@@ -34,7 +34,7 @@
         true
     }
     @ifelse
-] $__next__ iter .add_getter
+] $__next__ iter .set_getter
 
 
 [
@@ -59,13 +59,13 @@ print ( "x" 10 "y" 20 2 dict .build ) @for
 
 "Iterating over a custom iterable:\n" .write
 "CustomIterable" @class =CustomIterable
-[ =self 0 self =.i self ] $__init__ CustomIterable .add_getter
-{ } $__iter__ CustomIterable .add_getter
+[ =self 0 self =.i self ] $__init__ CustomIterable .set_getter
+{ } $__iter__ CustomIterable .set_getter
 [
     =self
     self .i 0 == { "hello" true } @if
     self .i 1 == { "world" true } @if
     self .i 2 == { false } @if
     self .i 1 + self =.i
-] $__next__ CustomIterable .add_getter
+] $__next__ CustomIterable .set_getter
 print @CustomIterable @for

@@ -1,6 +1,6 @@
 
 
-[ @class =cls [ =self self =.data self ] $__init__ cls .add_getter cls ] =$_marker
+[ @class =cls [ =self self =.data self ] $__init__ cls .set_getter cls ] =$_marker
 "class_attr" @_marker =class_attr
 "class_getter" @_marker =class_getter
 "class_setter" @_marker =class_setter

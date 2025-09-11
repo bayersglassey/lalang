@@ -388,7 +388,7 @@ object_t *vm_get_or_create_int(vm_t *vm, int i) {
     }
 }
 
-void vm_add_builtin(vm_t *vm, const char *name, c_code_t *c_code) {
+void vm_set_builtin(vm_t *vm, const char *name, c_code_t *c_code) {
     func_t *func = func_create_with_c_code(name, c_code);
     dict_set(vm->globals, name, object_create_func(func));
 }
@@ -422,32 +422,32 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "vm", object_create_vm(vm));
 
     // initialize builtins (i.e. C function globals)
-    vm_add_builtin(vm, "is", &builtin_is);
-    vm_add_builtin(vm, "if", &builtin_if);
-    vm_add_builtin(vm, "ifelse", &builtin_ifelse);
-    vm_add_builtin(vm, "while", &builtin_while);
-    vm_add_builtin(vm, "iter", &builtin_iter);
-    vm_add_builtin(vm, "next", &builtin_next);
-    vm_add_builtin(vm, "for", &builtin_for);
-    vm_add_builtin(vm, "range", &builtin_range);
-    vm_add_builtin(vm, "pair", &builtin_pair);
-    vm_add_builtin(vm, "globals", &builtin_globals);
-    vm_add_builtin(vm, "locals", &builtin_locals);
-    vm_add_builtin(vm, "typeof", &builtin_typeof);
-    vm_add_builtin(vm, "print", &builtin_print);
-    vm_add_builtin(vm, "dup", &builtin_dup);
-    vm_add_builtin(vm, "drop", &builtin_drop);
-    vm_add_builtin(vm, "swap", &builtin_swap);
-    vm_add_builtin(vm, "get", &builtin_get);
-    vm_add_builtin(vm, "set", &builtin_set);
-    vm_add_builtin(vm, "clear", &builtin_clear);
-    vm_add_builtin(vm, "print_stack", &vm_print_stack);
-    vm_add_builtin(vm, "readline", &builtin_readline);
-    vm_add_builtin(vm, "readfile", &builtin_readfile);
-    vm_add_builtin(vm, "eval", &builtin_eval);
-    vm_add_builtin(vm, "dlsym", &builtin_dlsym);
-    vm_add_builtin(vm, "error", &builtin_error);
-    vm_add_builtin(vm, "class", &builtin_class);
+    vm_set_builtin(vm, "is", &builtin_is);
+    vm_set_builtin(vm, "if", &builtin_if);
+    vm_set_builtin(vm, "ifelse", &builtin_ifelse);
+    vm_set_builtin(vm, "while", &builtin_while);
+    vm_set_builtin(vm, "iter", &builtin_iter);
+    vm_set_builtin(vm, "next", &builtin_next);
+    vm_set_builtin(vm, "for", &builtin_for);
+    vm_set_builtin(vm, "range", &builtin_range);
+    vm_set_builtin(vm, "pair", &builtin_pair);
+    vm_set_builtin(vm, "globals", &builtin_globals);
+    vm_set_builtin(vm, "locals", &builtin_locals);
+    vm_set_builtin(vm, "typeof", &builtin_typeof);
+    vm_set_builtin(vm, "print", &builtin_print);
+    vm_set_builtin(vm, "dup", &builtin_dup);
+    vm_set_builtin(vm, "drop", &builtin_drop);
+    vm_set_builtin(vm, "swap", &builtin_swap);
+    vm_set_builtin(vm, "get", &builtin_get);
+    vm_set_builtin(vm, "set", &builtin_set);
+    vm_set_builtin(vm, "clear", &builtin_clear);
+    vm_set_builtin(vm, "print_stack", &vm_print_stack);
+    vm_set_builtin(vm, "readline", &builtin_readline);
+    vm_set_builtin(vm, "readfile", &builtin_readfile);
+    vm_set_builtin(vm, "eval", &builtin_eval);
+    vm_set_builtin(vm, "dlsym", &builtin_dlsym);
+    vm_set_builtin(vm, "error", &builtin_error);
+    vm_set_builtin(vm, "class", &builtin_class);
 
     // initialize int cache
     for (int i = VM_MIN_CACHED_INT; i <= VM_MAX_CACHED_INT; i++) {
@@ -476,7 +476,7 @@ void vm_init(vm_t *vm) {
 
 }
 
-vm_t *vm_create() {
+vm_t *vm_create(void) {
     vm_t *vm = calloc(1, sizeof *vm);
     if (!vm) {
         fprintf(stderr, "Failed to allocate memory for VM\n");

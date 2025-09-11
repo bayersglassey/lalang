@@ -1,12 +1,12 @@
 
 "A" @class =A
 
-[ =self self =.data self ] $__init__ A .add_getter
-[ "A(" .write .data .write ")" .write ] $__print__ A .add_getter
-[ @drop "Get hello!\n" .write ] $hello A .add_getter
-[ @drop "Set hello!\n" .write ] $hello A .add_setter
-[ @drop "Get hello class!\n" .write ] $hello A .add_class_getter
-[ @drop "Set hello class!\n" .write ] $hello A .add_class_setter
+[ =self self =.data self ] $__init__ A .set_getter
+[ "A(" .write .data .write ")" .write ] $__print__ A .set_getter
+[ @drop "Get hello!\n" .write ] $hello A .set_getter
+[ @drop "Set hello!\n" .write ] $hello A .set_setter
+[ @drop "Get hello class!\n" .write ] $hello A .set_class_getter
+[ @drop "Set hello class!\n" .write ] $hello A .set_class_setter
 
 # class attr
 10 A =.x
@@ -25,9 +25,18 @@ a2 @print # A(a2)
 a1 .x @print # 10
 a2 .x @print # 20
 
-a1 .hello
-a1 =.hello
-A .hello
-A =.hello
+a1 .hello # Get hello!
+a1 =.hello # Set hello!
+A .hello # Get hello class!
+A =.hello # Set hello class!
 
-@print_stack # should be empty
+"Class copying test:\n" .write
+"B" A .copy =B
+[ @drop "Set hello for B!\n" .write ] $hello B .set_setter
+"b1" @B =b1
+b1 .hello # Get hello!
+b1 =.hello # Set hello for B!
+
+
+"Tests done! Stack should be empty:\n" .write
+@print_stack

@@ -206,7 +206,7 @@ void object_print(object_t *self);
 * NULL
 ****************/
 
-object_t *object_create_null();
+object_t *object_create_null(void);
 
 extern type_t null_type;
 extern object_t static_null;
@@ -251,7 +251,7 @@ struct list {
     object_t **elems;
 };
 
-list_t *list_create();
+list_t *list_create(void);
 list_t *list_copy(list_t *list);
 void list_grow(list_t *list, int new_len);
 void list_extend(list_t *list, list_t *other);
@@ -281,7 +281,7 @@ struct dict {
     dict_item_t *items;
 };
 
-dict_t *dict_create();
+dict_t *dict_create(void);
 dict_t *dict_copy(dict_t *dict);
 object_t *object_create_dict(dict_t *dict);
 dict_item_t *dict_get_item(dict_t *dict, const char *name);
@@ -373,6 +373,7 @@ extern type_t func_type;
 
 struct cls {
     vm_t *vm;
+    type_t *type;
 
     dict_t *class_attrs;
 
@@ -385,7 +386,9 @@ struct cls {
     dict_t *setters;
 };
 
+type_t *type_create_cls(const char *name, cls_t *cls);
 object_t *object_create_cls(const char *name, vm_t *vm);
+object_t *object_copy_cls(cls_t *target_cls, const char *name);
 
 
 /****************
@@ -433,7 +436,7 @@ object_t *vm_get_char_str(vm_t *vm, char c);
 object_t *vm_get_or_create_int(vm_t *vm, int i);
 void vm_push_code(vm_t *vm, code_t *code);
 
-vm_t *vm_create();
+vm_t *vm_create(void);
 void vm_print_stack(vm_t *vm);
 void vm_print_code(vm_t *vm, code_t *code);
 object_t *vm_iter(vm_t *vm);

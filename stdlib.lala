@@ -8,8 +8,8 @@
     @iter self =.it2
     @iter self =.it1
     self
-] $__init__ zip .add_getter
-{ } $__iter__ zip .add_getter
+] $__init__ zip .set_getter
+{ } $__iter__ zip .set_getter
 [
     =self
     self .it1 @next {
@@ -19,7 +19,7 @@
             val1 val2 @pair true
         } { false } @ifelse
     } { false } @ifelse
-] $__next__ zip .add_getter
+] $__next__ zip .set_getter
 
 
 # "abc" @enumerate @list -> [["a", 0], ["b", 1], ["c", 2]]
@@ -29,8 +29,8 @@
     @iter self =.it
     0 self =.i
     self
-] $__init__ enumerate .add_getter
-{ } $__iter__ enumerate .add_getter
+] $__init__ enumerate .set_getter
+{ } $__iter__ enumerate .set_getter
 [
     =self
     self .it @next {
@@ -38,7 +38,7 @@
         self .i 1 + self =.i
         next true
     } { false } @ifelse
-] $__next__ enumerate .add_getter
+] $__next__ enumerate .set_getter
 
 
 # ( 0 3 @range ) { 10 * } @map @list -> [0, 10, 20]
@@ -48,15 +48,15 @@
     self =.func
     @iter self =.it
     self
-] $__init__ map .add_getter
-{ } $__iter__ map .add_getter
+] $__init__ map .set_getter
+{ } $__iter__ map .set_getter
 [
     =self
     self .it @next {
         self .func @
         true
     } { false } @ifelse
-] $__next__ map .add_getter
+] $__next__ map .set_getter
 
 
 # ( 0 6 @range ) { 2 % 0 == } @filter @list -> [0, 2, 4]
@@ -66,8 +66,8 @@
     self =.func
     @iter self =.it
     self
-] $__init__ filter .add_getter
-{ } $__iter__ filter .add_getter
+] $__init__ filter .set_getter
+{ } $__iter__ filter .set_getter
 [
     =self
 
@@ -96,7 +96,7 @@
             false # break out of the while-loop
         } @ifelse
     } { } @while
-] $__next__ filter .add_getter
+] $__next__ filter .set_getter
 
 
 # "zabcba" @sorted -> ["a", "a", "b", "b", "c", "z"]

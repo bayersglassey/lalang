@@ -152,7 +152,7 @@ void object_print(object_t *self) {
 * NULL
 ****************/
 
-object_t *object_create_null() {
+object_t *object_create_null(void) {
     return &static_null;
 }
 
@@ -421,7 +421,7 @@ type_t str_type = {
 * LIST
 ****************/
 
-list_t *list_create() {
+list_t *list_create(void) {
     list_t *list = calloc(1, sizeof *list);
     if (!list) {
         fprintf(stderr, "Failed to allocate list\n");
@@ -646,7 +646,7 @@ type_t list_type = {
 * DICT
 ****************/
 
-dict_t *dict_create() {
+dict_t *dict_create(void) {
     dict_t *dict = calloc(1, sizeof *dict);
     if (!dict) {
         fprintf(stderr, "Failed to allocate dict\n");
@@ -1147,6 +1147,9 @@ bool cls_type_getter(object_t *self, const char *name, vm_t *vm) {
         vm_push(vm, obj);
         object_t *init_obj = dict_get(cls->getters, "__init__");
         if (init_obj) object_getter(init_obj, "@", vm);
+    } else if (!strcmp(name, "copy")) {
+        const char *name = object_to_str(vm_pop(vm));
+        vm_push(vm, object_copy_cls(cls, name));
     } else if (!strcmp(name, "__dict__")) {
         vm_push(vm, object_create_dict(cls->class_attrs));
     } else if (!strcmp(name, "__getters__")) {
@@ -1158,10 +1161,10 @@ bool cls_type_getter(object_t *self, const char *name, vm_t *vm) {
     } else if (!strcmp(name, "__class_setters__")) {
         vm_push(vm, object_create_dict(cls->class_setters));
     } else if (
-        !strcmp(name, "add_getter") ||
-        !strcmp(name, "add_setter") ||
-        !strcmp(name, "add_class_getter") ||
-        !strcmp(name, "add_class_setter")
+        !strcmp(name, "set_getter") ||
+        !strcmp(name, "set_setter") ||
+        !strcmp(name, "set_class_getter") ||
+        !strcmp(name, "set_class_setter")
     ) {
         dict_t *dict;
         // NOTE: make sure we don't shadow the "name" variable when doing
@@ -1257,19 +1260,7 @@ bool cls_setter(object_t *self, const char *name, vm_t *vm) {
     return true;
 }
 
-object_t *object_create_cls(const char *name, vm_t *vm) {
-    cls_t *cls = calloc(1, sizeof *cls);
-    if (!cls) {
-        fprintf(stderr, "Failed to allocate class '%s'\n", name);
-        exit(1);
-    }
-    cls->vm = vm;
-    cls->class_attrs = dict_create();
-    cls->class_getters = dict_create();
-    cls->class_setters = dict_create();
-    cls->getters = dict_create();
-    cls->setters = dict_create();
-
+type_t *type_create_cls(const char *name, cls_t *cls) {
     type_t *type = calloc(1, sizeof *type);
     if (!type) {
         fprintf(stderr, "Failed to allocate class type '%s'\n", name);
@@ -1283,6 +1274,37 @@ object_t *object_create_cls(const char *name, vm_t *vm) {
     type->type_setter = cls_type_setter;
     type->getter = cls_getter;
     type->setter = cls_setter;
+    return type;
+}
 
-    return object_create_type(type);
+object_t *object_create_cls(const char *name, vm_t *vm) {
+    cls_t *cls = calloc(1, sizeof *cls);
+    if (!cls) {
+        fprintf(stderr, "Failed to allocate class '%s'\n", name);
+        exit(1);
+    }
+    cls->type = type_create_cls(name, cls);
+    cls->vm = vm;
+    cls->class_attrs = dict_create();
+    cls->class_getters = dict_create();
+    cls->class_setters = dict_create();
+    cls->getters = dict_create();
+    cls->setters = dict_create();
+    return object_create_type(cls->type);
+}
+
+object_t *object_copy_cls(cls_t *target_cls, const char *name) {
+    cls_t *cls = calloc(1, sizeof *cls);
+    if (!cls) {
+        fprintf(stderr, "Failed to allocate class '%s' (copy of '%s')\n", name, target_cls->type->name);
+        exit(1);
+    }
+    cls->type = type_create_cls(name, cls);
+    cls->vm = target_cls->vm;
+    cls->class_attrs = dict_copy(target_cls->class_attrs);
+    cls->class_getters = dict_copy(target_cls->class_getters);
+    cls->class_setters = dict_copy(target_cls->class_setters);
+    cls->getters = dict_copy(target_cls->getters);
+    cls->setters = dict_copy(target_cls->setters);
+    return object_create_type(cls->type);
 }

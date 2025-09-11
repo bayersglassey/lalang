@@ -12,3 +12,5 @@
 "zabcba" @sorted @print # ["a", "a", "b", "b", "c", "z"]
 
 "abc" @reversed @print # ["c", "b", "a"]
+
+list .new 1 , "a" , dict .new , @repr @print # "[1, \"a\", {}]"

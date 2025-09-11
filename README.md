@@ -98,7 +98,8 @@ Classes! They work pretty similar to Python, everybody loves Python!
 >>> # Implement the "," operator
 >>> [ =self self .children .push self ] "," Tree .__getters__ .set
 >>> 
->>> 
+>>> # Create some instances, using the "," operator we implemented to nest them
+>>> # together into one big structure:
 >>>     "A" @Tree
 >>>         "1" @Tree
 >>>             "i" @Tree ,
@@ -120,7 +121,7 @@ The way types and objects work at the C level is based on Python's approach:
 * An **object** is C struct (`object_t`) with a type (`type_t *`) and some data (`void *`).
 
 We implement some basic data structures in C:
-* `list_t`: a list of `object_t *`
+* `list_t`: an array of `object_t *`
 * `dict_t`: a mapping from `const char *` keys to `object_t *` values
 
 Next we implement bytecode and a VM to run it on:
@@ -134,8 +135,8 @@ Next we implement bytecode and a VM to run it on:
 * `func_t`: has a name, and either a `code_t *` (interpreted function) or a
   `void (*)(vm_t*)` (built-in function).
 
-Then we implement a `type_t` for all the built-in types!
-The most important are:
+Then we implement a `type_t` for each built-in type!
+The most important ones are:
 * `nulltype` (plus the singleton `null`)
 * `bool` (plus singletons `true`, `false`)
 * `int`
@@ -148,9 +149,9 @@ Then we implement various built-in functions, and register them in the globals
 when we create the VM.
 
 Then we implement a "standard library" written in our language, which gets evaluated
-when we create the VM.
+when we create the VM (see [stdlib.lala](stdlib.lala)).
 
-Then we have a little `main` function which implements a simple REPL (Read-Eval-Print
+Then we have a little `int main()` function which implements a simple REPL (Read-Eval-Print
 Loop, i.e. interactive shell).
 
 That's pretty much it!
@@ -238,7 +239,7 @@ index are appended to the parent code.
 
 ## Implementation of Classes
 
-We've seen how types can be implemented in C.
+We've seen how each type in this language is implemented as a `type_t` in C.
 But how about classes, i.e. user-defined types?.. e.g.
 
 ```
@@ -259,8 +260,8 @@ We can define methods, too (but they're called "getters" and "setters"):
 >>> [
 ...     =.message
 ...     "Updated message." .writeline
-... ] $message A .add_setter
->>> [ .message .writeline ] $greet A .add_getter
+... ] $message A .set_setter
+>>> [ .message .writeline ] $greet A .set_getter
 >>> "Hello!" a =.message
 Updated message.
 >>> a .greet
@@ -271,7 +272,7 @@ It may be useful to see the bytecode involved (note how `=.x` and `.x` correspon
 and `GETTER x`):
 
 ```
-$ echo '"A" @class @ =a 3 a =.x a .x @print' | QUIET=1 PRINT_EVAL=1 ./lalang
+$ echo '"A" @class @ =a 3 a =.x a .x' | QUIET=1 PRINT_EVAL=1 ./lalang
 LOAD_STR "A"
 CALL_GLOBAL class
 CALL
@@ -281,8 +282,6 @@ LOAD_GLOBAL a
 SETTER x
 LOAD_GLOBAL a
 GETTER x
-CALL_GLOBAL print
-3
 ```
 
 Well, we know that all types are just `type_t` objects at the C level.
@@ -398,7 +397,7 @@ Long story short, `obj .x` will try the following:
 
 ## C extensions
 
-Naturally, like numpy for Python, we need to support 3rd party extensions written in C.
+Naturally, like numpy for Python, we need to support third party extensions written in C.
 
 And so, with the magic of `dlopen(3)`, we do!
 

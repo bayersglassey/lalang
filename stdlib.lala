@@ -108,6 +108,10 @@
 
 
 # @conds: implements if..elif..elif..else
+# E.g. if COND1 then THEN1 elif COND2 then THEN2 else ELSE end
+# ...becomes: { COND1 } { THEN1 } { COND2 } { THEN2 } { ELSE } 2 @cond
+# TODO: figure out a nicer way which doesn't require passing the number of
+# conditions on the stack...
 {
     @locals [ =locals
         # get arguments
@@ -146,8 +150,7 @@
 ] =@join
 
 
-# E.g. if COND1 then THEN1 elif COND2 then THEN2 else ELSE end
-# ...becomes: { COND1 } { THEN1 } { COND2 } { THEN2 } { ELSE } 2 @cond
+# list .new 1 , "a" , dict .new , @repr -> "[1, \"a\", {}]"
 [
     =x
     x @typeof =T

@@ -290,7 +290,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
             compiler_frame_push_local(last_func_frame, i);
         } else if (first_c == '=') {
             // store global/local
-            bool rename_func = token[1] == '$';
+            bool rename_func = token[1] == '@';
             const char *s = parse_name(token + (rename_func? 2: 1));
             int i = vm_get_cached_str_i(vm, s);
             if (rename_func) {

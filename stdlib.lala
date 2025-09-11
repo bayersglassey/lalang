@@ -100,11 +100,11 @@
 
 
 # "zabcba" @sorted -> ["a", "a", "b", "b", "c", "z"]
-{ @list @dup .sort } =$sorted
+{ @list @dup .sort } =@sorted
 
 
 # "abc" @reversed -> ["c", "b", "a"]
-{ @list @dup .reverse } =$reversed
+{ @list @dup .reverse } =@reversed
 
 
 # @conds: implements if..elif..elif..else
@@ -136,14 +136,14 @@
             @else
         } @if
     ] @
-} =$conds
+} =@conds
 
 
 # list .new "a" , "b" , "c" , @join -> "abc"
 [
     @iter =it
     "" { + } it @for
-] =$join
+] =@join
 
 
 # E.g. if COND1 then THEN1 elif COND2 then THEN2 else ELSE end
@@ -185,7 +185,7 @@
     # And also for types defined in C?..
     # We need something like a @getters function, which unlike .__getters__
     # (which can fail), always returns a dict?..
-] =$repr
+] =@repr
 
 
 # E.g. "mymodule" @include looks for "mymodule.lala" or "mymodule.so"
@@ -198,4 +198,4 @@
         # NOTE: currently only checks for .so files in current directory...
         ( "./" name + ".so" + ) ( name "_init" + ) @dlsym
     } @ifelse
-] =$include
+] =@include

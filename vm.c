@@ -105,9 +105,12 @@ void builtin_typeof(vm_t *vm) {
 }
 
 void builtin_print(vm_t *vm) {
-    object_t *self = vm_pop(vm);
-    object_print(self);
+    object_print(vm_pop(vm));
     putc('\n', stdout);
+}
+
+void builtin_print_inline(vm_t *vm) {
+    object_print(vm_pop(vm));
 }
 
 void builtin_dup(vm_t *vm) {
@@ -435,6 +438,7 @@ void vm_init(vm_t *vm) {
     vm_set_builtin(vm, "locals", &builtin_locals);
     vm_set_builtin(vm, "typeof", &builtin_typeof);
     vm_set_builtin(vm, "print", &builtin_print);
+    vm_set_builtin(vm, "print_inline", &builtin_print_inline);
     vm_set_builtin(vm, "dup", &builtin_dup);
     vm_set_builtin(vm, "drop", &builtin_drop);
     vm_set_builtin(vm, "swap", &builtin_swap);

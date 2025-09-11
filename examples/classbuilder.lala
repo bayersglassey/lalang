@@ -1,6 +1,6 @@
 
 
-[ @class =cls [ =self self =.data self ] $__init__ cls .set_getter cls ] =$_marker
+[ @class =cls [ =self self =.data self ] $__init__ cls .set_getter cls ] =@_marker
 "class_attr" @_marker =class_attr
 "class_getter" @_marker =class_getter
 "class_setter" @_marker =class_setter
@@ -43,7 +43,7 @@
     } attrs .items @for
 
     cls
-] =$buildclass
+] =@buildclass
 
 
 [
@@ -56,7 +56,7 @@
             .unpair =value =key
             key d1 .has ! { value key d1 .set } @if
         } d2 .items @for
-    ] =$weak_update
+    ] =@weak_update
 
     cls .__dict__ supercls.__dict__ @weak_update
     cls .__getters__ supercls.__getters__ @weak_update
@@ -65,7 +65,7 @@
     cls .__class_setters__ supercls.__class_setters__ @weak_update
 
     cls
-] =$inherits
+] =@inherits
 
 
 ##############################################################
@@ -74,8 +74,8 @@
 "@buildclass test:\n" .write
 [
     "hello" =message
-    [ =self self =.x self ] =$__init__
-    [ .x 1 + ] =$y
+    [ =self self =.x self ] =@__init__
+    [ .x 1 + ] =@y
     [ .x 1 - ] y @setter
 ] "A" @buildclass =A
 10 @A =a
@@ -86,7 +86,7 @@ a =.y @print # 9
 
 "@inherits test:\n" .write
 [
-    [ .x 10 * ] =$y
+    [ .x 10 * ] =@y
 ] "B" @buildclass @inherits A =B
 20 @B =b
 b .message @print # "hello"

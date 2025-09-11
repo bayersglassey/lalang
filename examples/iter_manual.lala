@@ -42,7 +42,7 @@
     =body
     { it .__next__ }
     body @while
-] =$for
+] =@for
 
 
 "Iterating over an int:\n" .write

@@ -5,7 +5,7 @@
     { x 2 == } { "B" }
     { "C" } # else-branch
     2 @conds
-] =$f
+] =@f
 
 1 @f @print # "A"
 2 @f @print # "B"

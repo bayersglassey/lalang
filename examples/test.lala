@@ -29,13 +29,13 @@ list .new "a" , "b" , "c" , @join @print # "abc"
 0 =i { i 5 < } { i @print i 1 + =i } @while # 0 1 2 3 4
 
 "Func stack test:\n" .write
-{ + } =$f
+{ + } =@f
 10 f .push_stack
 f .stack @print # [10]
 5 @f @print # 15
 
 "Func locals test:\n" .write
-[ 'x x + ] =$f
+[ 'x x + ] =@f
 10 "x" f .set_local
 f .locals @print # {x: 10}
 5 @f @print # 15
@@ -46,7 +46,7 @@ f .locals @print # {x: 10}
     { @drop 1 }
     { @dup 1 - @factorial * }
     @ifelse
-} =$factorial
+} =@factorial
 1 @factorial @print # 1
 2 @factorial @print # 2
 3 @factorial @print # 6
@@ -59,7 +59,7 @@ f .locals @print # {x: 10}
     { 1 }
     { n 1 - @factorial n * }
     @ifelse
-] =$factorial2
+] =@factorial2
 1 @factorial2 @print # 1
 2 @factorial2 @print # 2
 3 @factorial2 @print # 6

@@ -35,8 +35,8 @@ int main(int n_args, char **args) {
     // we can debug the stdlib itself separately
     if (stdlib) vm_include(vm, "stdlib.lala");
 
-    compiler->debug_print_tokens = getenv_bool("PRINT_TOKENS", false);
-    compiler->debug_print_code = getenv_bool("PRINT_CODE", false);
+    vm->debug_print_tokens = getenv_bool("PRINT_TOKENS", false);
+    vm->debug_print_code = getenv_bool("PRINT_CODE", false);
     vm->debug_print_stack = getenv_bool("PRINT_STACK", false);
     vm->debug_print_eval = getenv_bool("PRINT_EVAL", false);
 

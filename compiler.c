@@ -66,7 +66,7 @@ static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
             }
         }
     }
-    if (compiler->debug_print_code) {
+    if (compiler->vm->debug_print_code) {
         printf("=== PARSED CODE:\n");
         vm_print_code(compiler->vm, popped_frame->code);
         printf("=== END CODE\n");
@@ -224,7 +224,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
         char next_c = *text;
         *text = '\0';
 
-        if (compiler->debug_print_tokens) {
+        if (vm->debug_print_tokens) {
             fprintf(stderr, "GOT TOKEN: [%s]\n", token);
         }
 
@@ -371,7 +371,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
 code_t *compiler_pop_runnable_code(compiler_t *compiler) {
     if (compiler->frame == compiler->frames) {
         code_t *code = (compiler->frame--)->code;
-        if (compiler->debug_print_code && code->len) {
+        if (compiler->vm->debug_print_code && code->len) {
             printf("=== PARSED RUNNABLE CODE:\n");
             vm_print_code(compiler->vm, code);
             printf("=== END CODE\n");

@@ -225,6 +225,61 @@ void builtin_class(vm_t *vm) {
 
 
 /****************
+* VM OBJECT
+****************/
+
+object_t *object_create_vm(vm_t *vm) {
+    object_t *obj = object_create(&vm_type);
+    obj->data.ptr = vm;
+    return obj;
+}
+
+bool vm_type_getter(object_t *self, const char *name, vm_t *vm) {
+    if (!strcmp(name, "@")) {
+        vm_push(vm, object_create_vm(vm));
+    } else return false;
+    return true;
+}
+
+bool vm_getter(object_t *self, const char *name, vm_t *vm) {
+    // NOTE: our vm doesn't necessarily have to be the one making this call! :O
+    vm_t *self_vm = self->data.ptr;
+    if (!strcmp(name, "print_tokens")) {
+        vm_push(vm, object_create_bool(self_vm->debug_print_tokens));
+    } else if (!strcmp(name, "print_code")) {
+        vm_push(vm, object_create_bool(self_vm->debug_print_code));
+    } else if (!strcmp(name, "print_stack")) {
+        vm_push(vm, object_create_bool(self_vm->debug_print_stack));
+    } else if (!strcmp(name, "print_eval")) {
+        vm_push(vm, object_create_bool(self_vm->debug_print_eval));
+    } else return false;
+    return true;
+}
+
+bool vm_setter(object_t *self, const char *name, vm_t *vm) {
+    // NOTE: our vm doesn't necessarily have to be the one making this call! :O
+    vm_t *self_vm = self->data.ptr;
+    if (!strcmp(name, "print_tokens")) {
+        self_vm->debug_print_tokens = object_to_bool(vm_pop(vm));
+    } else if (!strcmp(name, "print_code")) {
+        self_vm->debug_print_code = object_to_bool(vm_pop(vm));
+    } else if (!strcmp(name, "print_stack")) {
+        self_vm->debug_print_stack = object_to_bool(vm_pop(vm));
+    } else if (!strcmp(name, "print_eval")) {
+        self_vm->debug_print_eval = object_to_bool(vm_pop(vm));
+    } else return false;
+    return true;
+}
+
+type_t vm_type = {
+    .name = "vm",
+    .type_getter = vm_type_getter,
+    .getter = vm_getter,
+    .setter = vm_setter,
+};
+
+
+/****************
 * VM
 ****************/
 
@@ -364,6 +419,7 @@ void vm_init(vm_t *vm) {
     dict_set(vm->globals, "dict", object_create_type(&dict_type));
     dict_set(vm->globals, "iterator", object_create_type(&iterator_type));
     dict_set(vm->globals, "func", object_create_type(&func_type));
+    dict_set(vm->globals, "vm", object_create_vm(vm));
 
     // initialize builtins (i.e. C function globals)
     vm_add_builtin(vm, "is", &builtin_is);

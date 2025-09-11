@@ -41,6 +41,9 @@
     [ ] join
     [X] replace
     [X] has
+[ ] implement list '+', and something like '*' (maybe .times?)
 [ ] replace the various kinds of ITER_ with just ITER_CUSTOM's mechanism?..
     i.e. we just need a "next" function and data pointer?..
 [ ] add a README
+[X] implement @vm, which returns an object which can be used e.g. to set
+    debug flags dynamically

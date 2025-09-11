@@ -408,9 +408,15 @@ struct vm {
     dict_t *globals;
     dict_t *locals; // may be NULL
 
+    bool debug_print_tokens;
+    bool debug_print_code;
     bool debug_print_stack;
     bool debug_print_eval;
 };
+
+object_t *object_create_vm(vm_t *vm);
+
+extern type_t vm_type;
 
 int vm_get_size(vm_t *vm);
 object_t *vm_get(vm_t *vm, int i);
@@ -453,9 +459,6 @@ struct compiler {
     compiler_frame_t frames[COMPILER_STACK_SIZE];
     compiler_frame_t *frame;
     compiler_frame_t *last_func_frame;
-
-    bool debug_print_tokens;
-    bool debug_print_code;
 };
 
 compiler_t *compiler_create(vm_t *vm);

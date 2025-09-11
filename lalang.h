@@ -57,6 +57,7 @@ enum cmp_result {
     CMP_GT
 };
 
+void print_tabs(int depth, FILE *file);
 void print_string_quoted(const char *s);
 char *read_file(const char *filename, bool required);
 int get_index(int i, int len, const char *type_name);
@@ -139,13 +140,18 @@ union bytecode {
 };
 
 struct code {
+    // Where this code was compiled from
     const char *filename;
+    int row;
+    int col;
+
     bool is_func; // are we a function [...] or a code block {...}?
+
     int len;
     bytecode_t *bytecodes;
 };
 
-code_t *code_create(const char *filename, bool is_func);
+code_t *code_create(const char *filename, int row, int col, bool is_func);
 code_t *code_push_instruction(code_t *code, instruction_t instruction);
 code_t *code_push_i(code_t *code, int i);
 
@@ -413,10 +419,12 @@ struct vm {
     dict_t *globals;
     dict_t *locals; // may be NULL
 
-    bool debug_print_tokens;
-    bool debug_print_code;
-    bool debug_print_stack;
-    bool debug_print_eval;
+    int eval_depth;
+
+    int debug_print_tokens;
+    int debug_print_code;
+    int debug_print_stack;
+    int debug_print_eval;
 };
 
 object_t *object_create_vm(vm_t *vm);
@@ -440,11 +448,11 @@ void vm_push_code(vm_t *vm, code_t *code);
 
 vm_t *vm_create(void);
 void vm_print_stack(vm_t *vm);
-void vm_print_code(vm_t *vm, code_t *code);
+void vm_print_code(vm_t *vm, code_t *code, int depth);
 object_t *vm_iter(vm_t *vm);
 void vm_eval(vm_t *vm, code_t *code, dict_t *locals);
 void vm_include(vm_t *vm, const char *filename);
-void vm_eval_text(vm_t *vm, char *text);
+void vm_eval_text(vm_t *vm, char *text, const char *filename);
 
 
 /****************

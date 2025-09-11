@@ -1060,7 +1060,7 @@ bool func_getter(object_t *self, const char *name, vm_t *vm) {
         dict_set(func->locals, name, obj);
     } else if (!strcmp(name, "print_code")) {
         if (func->is_c_code) printf("Can't print code of built-in function!\n");
-        else vm_print_code(vm, func->u.code);
+        else vm_print_code(vm, func->u.code, 0);
     } else return false;
     return true;
 }

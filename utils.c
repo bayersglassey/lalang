@@ -7,6 +7,11 @@
 #include "lalang.h"
 
 
+void print_tabs(int depth, FILE *file) {
+    for (int i = 0; i < depth; i++) fputs("  ", file);
+}
+
+
 void print_string_quoted(const char *s) {
     int len = strlen(s);
     putc('"', stdout);

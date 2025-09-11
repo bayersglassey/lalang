@@ -194,9 +194,10 @@
 # E.g. "mymodule" @include looks for "mymodule.lala" or "mymodule.so"
 [
     =name
-    ( "." "/" name .replace ".lala" + ) @readfile =code
+    ( "." "/" name .replace ".lala" + ) =filename
+    filename @readfile =code
     code null != {
-        code @eval
+        filename code @eval2
     } {
         # NOTE: currently only checks for .so files in current directory...
         ( "./" name + ".so" + ) ( name "_init" + ) @dlsym

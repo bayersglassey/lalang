@@ -169,7 +169,18 @@ void builtin_eval(vm_t *vm) {
         fprintf(stderr, "Couldn't duplicate text of size %i for eval\n", (int)strlen(const_text));
         exit(1);
     }
-    vm_eval_text(vm, text);
+    vm_eval_text(vm, text, NULL);
+}
+
+void builtin_eval2(vm_t *vm) {
+    const char *const_text = object_to_str(vm_pop(vm));
+    const char *filename = object_to_str(vm_pop(vm));
+    char *text = strdup(const_text);
+    if (!text) {
+        fprintf(stderr, "Couldn't duplicate text of size %i for eval2\n", (int)strlen(const_text));
+        exit(1);
+    }
+    vm_eval_text(vm, text, filename);
 }
 
 void builtin_dlsym(vm_t *vm) {
@@ -449,6 +460,7 @@ void vm_init(vm_t *vm) {
     vm_set_builtin(vm, "readline", &builtin_readline);
     vm_set_builtin(vm, "readfile", &builtin_readfile);
     vm_set_builtin(vm, "eval", &builtin_eval);
+    vm_set_builtin(vm, "eval2", &builtin_eval2);
     vm_set_builtin(vm, "dlsym", &builtin_dlsym);
     vm_set_builtin(vm, "error", &builtin_error);
     vm_set_builtin(vm, "class", &builtin_class);
@@ -509,7 +521,10 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
         putc(' ', stdout);
         print_string_quoted(vm->str_cache->items[j].name);
     } else if (instruction == INSTR_LOAD_FUNC) {
-        printf(" %i", code->bytecodes[++i].i);
+        int j = code->bytecodes[++i].i;
+        func_t *func = vm->code_cache->elems[j]->data.ptr;
+        printf(" %i (code compiled from %s, row %i, col %i)", j,
+            func->u.code->filename, func->u.code->row + 1, func->u.code->col + 1);
     } else if (
         instruction == INSTR_GETTER || instruction == INSTR_SETTER ||
         instruction >= FIRST_GLOBAL_INSTR && instruction <= LAST_LOCAL_INSTR ||
@@ -523,8 +538,13 @@ void vm_print_instruction(vm_t *vm, code_t *code, int *i_ptr) {
     *i_ptr = i;
 }
 
-void vm_print_code(vm_t *vm, code_t *code) {
-    for (int i = 0; i < code->len; i++) vm_print_instruction(vm, code, &i);
+void vm_print_code(vm_t *vm, code_t *code, int depth) {
+    print_tabs(depth, stdout);
+    printf("Code compiled from %s, row %i, col %i:\n", code->filename, code->row + 1, code->col + 1);
+    for (int i = 0; i < code->len; i++) {
+        print_tabs(depth, stdout);
+        vm_print_instruction(vm, code, &i);
+    }
 }
 
 object_t *vm_iter(vm_t *vm) {
@@ -535,6 +555,12 @@ object_t *vm_iter(vm_t *vm) {
 
 void vm_eval(vm_t *vm, code_t *code, dict_t *locals) {
 
+    if (vm->debug_print_eval) {
+        print_tabs(vm->eval_depth, stderr);
+        fprintf(stderr, "Evaluating code compiled from %s, row %i, col %i:\n",
+            code->filename, code->row + 1, code->col + 1);
+    }
+
     // Set up locals
     dict_t *prev_locals;
     if (!locals && code->is_func) locals = dict_create();
@@ -543,9 +569,13 @@ void vm_eval(vm_t *vm, code_t *code, dict_t *locals) {
         vm->locals = locals;
     }
 
+    vm->eval_depth++;
+
     for (int i = 0; i < code->len; i++) {
 
         if (vm->debug_print_eval) {
+            print_tabs(vm->eval_depth, stderr);
+            // print instruction, but don't increment i if it takes an argument
             int j = i;
             vm_print_instruction(vm, code, &j);
         }
@@ -653,6 +683,8 @@ void vm_eval(vm_t *vm, code_t *code, dict_t *locals) {
     if (locals) {
         vm->locals = prev_locals;
     }
+
+    vm->eval_depth--;
 }
 
 void vm_include(vm_t *vm, const char *filename) {
@@ -667,8 +699,8 @@ void vm_include(vm_t *vm, const char *filename) {
     vm_eval(vm, code, NULL);
 }
 
-void vm_eval_text(vm_t *vm, char *text) {
-    compiler_t *compiler = compiler_create(vm, "<text>");
+void vm_eval_text(vm_t *vm, char *text, const char *filename) {
+    compiler_t *compiler = compiler_create(vm, filename? filename: "<text>");
     compiler_compile(compiler, text);
     code_t *code = compiler_pop_runnable_code(compiler);
     if (!code) {

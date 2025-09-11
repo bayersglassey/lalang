@@ -11,22 +11,26 @@
 * MAIN
 *****************/
 
-static bool getenv_bool(const char *name, bool default_value) {
+static int getenv_int(const char *name, int default_value) {
     const char *env = getenv(name);
-    if (env) return !strcmp(env, "1");
-    return default_value;
+    if (!env || env[0] == '\0') return default_value;
+    if (env[1] != '\0') {
+        fprintf(stderr, "Expected env var %s to be a single digit, but got: %s\n", name, env);
+        exit(1);
+    }
+    return env[0] - '0';
 }
 
 int main(int n_args, char **args) {
 
     // parse env vars
-    bool quiet = getenv_bool("QUIET", false);
-    bool eval = getenv_bool("EVAL", true);
-    bool stdlib = getenv_bool("STDLIB", true);
-    bool print_tokens = getenv_bool("PRINT_TOKENS", false);
-    bool print_code = getenv_bool("PRINT_CODE", false);
-    bool print_stack = getenv_bool("PRINT_STACK", false);
-    bool print_eval = getenv_bool("PRINT_EVAL", false);
+    bool quiet = getenv_int("QUIET", false);
+    bool eval = getenv_int("EVAL", true);
+    bool stdlib = getenv_int("STDLIB", true);
+    int print_tokens = getenv_int("PRINT_TOKENS", 0);
+    int print_code = getenv_int("PRINT_CODE", 0);
+    int print_stack = getenv_int("PRINT_STACK", 0);
+    int print_eval = getenv_int("PRINT_EVAL", 0);
 
     vm_t *vm = vm_create();
     compiler_t *compiler = compiler_create(vm, "<stdin>");
@@ -35,10 +39,10 @@ int main(int n_args, char **args) {
     // we can debug the stdlib itself separately
     if (stdlib) vm_include(vm, "stdlib.lala");
 
-    vm->debug_print_tokens = getenv_bool("PRINT_TOKENS", false);
-    vm->debug_print_code = getenv_bool("PRINT_CODE", false);
-    vm->debug_print_stack = getenv_bool("PRINT_STACK", false);
-    vm->debug_print_eval = getenv_bool("PRINT_EVAL", false);
+    vm->debug_print_tokens = print_tokens;
+    vm->debug_print_code = print_code;
+    vm->debug_print_stack = print_stack;
+    vm->debug_print_eval = print_eval;
 
     char *line = NULL;
     size_t line_size = 0;
@@ -59,6 +63,7 @@ int main(int n_args, char **args) {
             if (!quiet && line[0] != ' ') vm_print_stack(vm);
         }
         continuing_line = !code;
+        compiler->row++;
     }
 }
 

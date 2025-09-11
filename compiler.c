@@ -31,7 +31,7 @@ void compiler_print_position(compiler_t *compiler) {
 
 static compiler_frame_t *compiler_push_frame(compiler_t *compiler, bool is_func) {
     compiler_frame_t *frame = ++compiler->frame;
-    frame->code = code_create(compiler->filename, is_func);
+    frame->code = code_create(compiler->filename, compiler->row, compiler->col, is_func);
     frame->n_locals = 0;
     frame->locals = NULL;
     if (is_func) compiler->last_func_frame = frame;
@@ -74,11 +74,6 @@ static compiler_frame_t *compiler_pop_frame(compiler_t *compiler) {
                 break;
             }
         }
-    }
-    if (compiler->vm->debug_print_code) {
-        printf("=== PARSED CODE:\n");
-        vm_print_code(compiler->vm, popped_frame->code);
-        printf("=== END CODE\n");
     }
     free(popped_frame->locals); // currently our only use of free in this codebase... hooray?
     return popped_frame;
@@ -219,7 +214,7 @@ static void compiler_frame_push_local(compiler_t *compiler, compiler_frame_t *fr
     frame->n_locals = new_n_locals;
 }
 
-void compiler_compile(compiler_t *compiler, char *text) {
+static void _compiler_compile(compiler_t *compiler, char *text, int depth) {
     // Get current frame, or add one
     compiler_frame_t *frame = compiler->frame < compiler->frames?
         compiler_push_frame(compiler, false): compiler->frame;
@@ -250,6 +245,7 @@ void compiler_compile(compiler_t *compiler, char *text) {
         *text = '\0';
 
         if (vm->debug_print_tokens) {
+            if (vm->debug_print_tokens >= 1) compiler_print_position(compiler);
             fprintf(stderr, "GOT TOKEN: [%s]\n", token);
         }
 
@@ -357,6 +353,11 @@ void compiler_compile(compiler_t *compiler, char *text) {
             // place.
         } else if (!strcmp(token, "{") || !strcmp(token, "[")) {
             // start code block
+            if (compiler->vm->debug_print_code) {
+                int depth = compiler->frame - compiler->frames;
+                print_tabs(depth, stdout);
+                printf("=== COMPILING '%c' CODE BLOCK:\n", token[0]);
+            }
             bool is_func = token[0] == '[';
             frame = compiler_push_frame(compiler, is_func);
             code = frame->code;
@@ -377,6 +378,14 @@ void compiler_compile(compiler_t *compiler, char *text) {
                 exit(1);
             }
             vm_push_code(vm, code);
+
+            if (compiler->vm->debug_print_code) {
+                int depth = compiler->frame - compiler->frames;
+                vm_print_code(compiler->vm, compiler->frame->code, depth);
+                print_tabs(depth - 1, stdout);
+                printf("=== END CODE BLOCK\n");
+            }
+
             int i = vm->code_cache->len - 1;
             compiler_pop_frame(compiler);
             frame = compiler->frame;
@@ -398,13 +407,17 @@ void compiler_compile(compiler_t *compiler, char *text) {
     }
 }
 
+void compiler_compile(compiler_t *compiler, char *text) {
+    _compiler_compile(compiler, text, 0);
+}
+
 code_t *compiler_pop_runnable_code(compiler_t *compiler) {
     if (compiler->frame == compiler->frames) {
         code_t *code = (compiler->frame--)->code;
         if (compiler->vm->debug_print_code && code->len) {
-            printf("=== PARSED RUNNABLE CODE:\n");
-            vm_print_code(compiler->vm, code);
-            printf("=== END CODE\n");
+            printf("=== COMPILED TOP-LEVEL CODE:\n");
+            vm_print_code(compiler->vm, code, 1);
+            printf("=== END TOP-LEVEL CODE\n");
         }
         return code;
     } else return NULL;

@@ -245,8 +245,8 @@ static void _compiler_compile(compiler_t *compiler, char *text, int depth) {
         *text = '\0';
 
         if (vm->debug_print_tokens) {
-            if (vm->debug_print_tokens >= 1) compiler_print_position(compiler);
-            fprintf(stderr, "GOT TOKEN: [%s]\n", token);
+            if (vm->debug_print_tokens >= 2) compiler_print_position(compiler);
+            fprintf(stderr, "Got token: [%s]\n", token);
         }
 
         char first_c = token[0];
@@ -356,7 +356,7 @@ static void _compiler_compile(compiler_t *compiler, char *text, int depth) {
             if (compiler->vm->debug_print_code) {
                 int depth = compiler->frame - compiler->frames;
                 print_tabs(depth, stdout);
-                printf("=== COMPILING '%c' CODE BLOCK:\n", token[0]);
+                printf("Compiling '%c' code block:\n", token[0]);
             }
             bool is_func = token[0] == '[';
             frame = compiler_push_frame(compiler, is_func);
@@ -382,8 +382,6 @@ static void _compiler_compile(compiler_t *compiler, char *text, int depth) {
             if (compiler->vm->debug_print_code) {
                 int depth = compiler->frame - compiler->frames;
                 vm_print_code(compiler->vm, compiler->frame->code, depth);
-                print_tabs(depth - 1, stdout);
-                printf("=== END CODE BLOCK\n");
             }
 
             int i = vm->code_cache->len - 1;
@@ -415,9 +413,8 @@ code_t *compiler_pop_runnable_code(compiler_t *compiler) {
     if (compiler->frame == compiler->frames) {
         code_t *code = (compiler->frame--)->code;
         if (compiler->vm->debug_print_code && code->len) {
-            printf("=== COMPILED TOP-LEVEL CODE:\n");
+            printf("Compiled top-level code:\n");
             vm_print_code(compiler->vm, code, 1);
-            printf("=== END TOP-LEVEL CODE\n");
         }
         return code;
     } else return NULL;

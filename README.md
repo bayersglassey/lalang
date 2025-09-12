@@ -166,35 +166,37 @@ Let's look at how a small program is tokenized, parsed, and evaluated:
 
 ```
 $ echo '{ 2 * } =@f 5 @f' | QUIET=1 PRINT_TOKENS=1 ./lalang
-GOT TOKEN: [{]
-GOT TOKEN: [2]
-GOT TOKEN: [*]
-GOT TOKEN: [}]
-GOT TOKEN: [=@f]
-GOT TOKEN: [5]
-GOT TOKEN: [@f]
+Got token: [{]
+Got token: [2]
+Got token: [*]
+Got token: [}]
+Got token: [=@f]
+Got token: [5]
+Got token: [@f]
 
 $ echo '{ 2 * } =@f 5 @f' | QUIET=1 PRINT_CODE=1 ./lalang
-=== COMPILED CODE:
-LOAD_INT 2
-MUL
-=== END CODE
-=== COMPILED TOP-LEVEL CODE:
-LOAD_FUNC 68
-RENAME_FUNC f
-STORE_GLOBAL f
-LOAD_INT 5
-CALL_GLOBAL f
-=== END CODE
+Compiling '{' code block:
+  Code compiled from <stdin>, row 1, col 1:
+  LOAD_INT 2
+  MUL
+Compiled top-level code:
+  Code compiled from <stdin>, row 1, col 1:
+  LOAD_FUNC 68 (code compiled from <stdin>, row 1, col 1)
+  RENAME_FUNC f
+  STORE_GLOBAL f
+  LOAD_INT 5
+  CALL_GLOBAL f
 
 $ echo '{ 2 * } =@f 5 @f' | QUIET=1 PRINT_EVAL=1 ./lalang
-LOAD_FUNC 68
-RENAME_FUNC f
-STORE_GLOBAL f
-LOAD_INT 5
-CALL_GLOBAL f
-LOAD_INT 2
-MUL
+Evaluating code compiled from <stdin>, row 1, col 1:
+  LOAD_FUNC 68 (code compiled from <stdin>, row 1, col 1)
+  RENAME_FUNC f
+  STORE_GLOBAL f
+  LOAD_INT 5
+  CALL_GLOBAL f
+  Evaluating code compiled from <stdin>, row 1, col 1:
+    LOAD_INT 2
+    MUL
 ```
 
 The instruction set is defined as a C enum, and in the bytecode, every "byte" (errr,
